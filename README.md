@@ -27,7 +27,10 @@ Todo corre en esta computadora: el servidor escucha solo en `127.0.0.1` y ningú
 - **Fase 4 (dashboard v0)**: Inicio (hoy, 7 días, racha, inmersión y repasos por día), la página de cada día
   (cada número con su explicación y su detalle), Anki por origen de las tarjetas (retención y maduras) y Fuentes.
 
-Siguen las fichas por contenido y el buscador de oraciones (fase 5).
+- **Fase 5 (contenido y buscador)**: la lista de juegos y videos, la ficha de cada uno (tiempo por día,
+  tarjetas con su oración, sesiones, últimas oraciones) y el buscador de todo lo leído en GSM.
+
+Sigue la fase 6: comparar con las estadísticas propias de cada herramienta y arrancar con Windows.
 
 ## Requisitos
 
@@ -101,6 +104,9 @@ Todas son opcionales:
 | `GET /api/overview?days=30` | Un resumen por día (juegos, YouTube, repasos, tarjetas minadas) y la racha |
 | `GET /api/days/:day` | El detalle de un día, fuente por fuente |
 | `GET /api/anki` | Tarjetas y retención por origen, y la evolución por semana |
+| `GET /api/contents` | Juegos y videos con su tiempo, sesiones y tarjetas |
+| `GET /api/contents/:id` | La ficha de un contenido |
+| `GET /api/search?q=` | Oraciones leídas que contienen el texto (3 letras como mínimo) |
 
 El hub rechaza pedidos cuyo `Host` no sea esta computadora (contra DNS rebinding) y los cambios
 (`POST`) que vengan de otras páginas web. No manda cabeceras CORS.

@@ -370,6 +370,18 @@ Cada fase termina con tests en verde y sus criterios cumplidos.
 
 **Fase 5 — Contenido y buscador**
 - Fichas por contenido y página Buscar sobre FTS5.
+- *Resultado (2026-11-14):* `GET /api/contents`, `GET /api/contents/:id` y `GET /api/search?q=`. Página Contenido
+  (juegos y videos con tiempo, tarjetas y última vez), ficha de cada uno (totales, tiempo por día, tarjetas con la
+  oración de la que salieron, sesiones, últimas 200 oraciones marcando las minadas) y Buscar (la consulta vive en
+  la dirección, `#/buscar?q=`). Decisiones:
+  - el tiempo de un video es el que Deuchan le acreditó cada día (foto más nueva, esta computadora): el historial
+    de Deuchan no tiene intervalos, así que las sesiones de video existen recién desde que se prendió el envío;
+  - la velocidad (caracteres por hora, como GSM) solo para lectura, y el % leído solo si GSM conoce el largo
+    (`character_count`, hoy 0 en todos los juegos): regla 7;
+  - la búsqueda es por trigramas como frase: encuentra palabras dentro de compuestos, sin mayúsculas ni tildes,
+    con 3 letras como mínimo; comillas u operadores escritos se buscan como texto;
+  - el texto del OCR se muestra en una línea (los espacios japoneses U+3000 y saltos de línea se normalizan);
+    no se deduplican las líneas que GSM capturó dos veces.
 
 **Fase 6 — Validación y pulido**
 - Comparar con las estadísticas propias de GSM, Deuchan y Anki; arranque automático con Windows (tarea
