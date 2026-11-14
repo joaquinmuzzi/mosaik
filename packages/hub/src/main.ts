@@ -1,7 +1,11 @@
 /**
  * Starts the hub: configuration, database (with its migrations), scheduler and server.
  * `--pretty` prints readable logs instead of JSON lines (used by `npm run dev`).
+ * `--log-file=<path>` writes the JSON logs to that file instead, for when the hub runs in the
+ * background (started with Windows, see scripts/autostart.ps1).
  */
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import type { FastifyServerOptions } from "fastify";
 import { ConfigError, loadConfig } from "./config.ts";
 import { createConnectors } from "./connectors/index.ts";
@@ -14,6 +18,8 @@ import { buildServer } from "./server.ts";
 async function main(): Promise<void> {
   const config = loadConfig();
   const pretty = process.argv.includes("--pretty");
+  const logFile = process.argv.find((arg) => arg.startsWith("--log-file="))?.slice("--log-file=".length);
+  if (logFile) mkdirSync(dirname(logFile), { recursive: true });
   const logger: FastifyServerOptions["logger"] = pretty
     ? {
         level: config.logLevel,
@@ -22,7 +28,9 @@ async function main(): Promise<void> {
           options: { translateTime: "SYS:HH:MM:ss", ignore: "pid,hostname" },
         },
       }
-    : { level: config.logLevel };
+    : logFile
+      ? { level: config.logLevel, file: logFile }
+      : { level: config.logLevel };
 
   const db = openDatabase(config.dbPath);
   const applied = applyMigrations(db);

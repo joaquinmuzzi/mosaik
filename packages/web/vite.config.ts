@@ -28,6 +28,8 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: "dist",
       emptyOutDir: true,
+      // ECharts makes the bundle ~600 kB (~200 kB gzipped); it is served from this computer, so one chunk is fine
+      chunkSizeWarningLimit: 1000,
     },
   };
 });
