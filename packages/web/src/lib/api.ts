@@ -1,9 +1,12 @@
 /** The dashboard only reads data through the hub's API, never from the database. */
 import type {
   AnkiStatsResponse,
+  ContentDetailResponse,
+  ContentsResponse,
   DayDetailResponse,
   HealthResponse,
   OverviewResponse,
+  SearchResponse,
   SourcesResponse,
   SyncOutcome,
 } from "@mosaik/shared";
@@ -21,5 +24,10 @@ export const getSources = () => request<SourcesResponse>("/api/sources");
 export const getOverview = (days = 30) => request<OverviewResponse>(`/api/overview?days=${days}`);
 export const getDay = (day: string) => request<DayDetailResponse>(`/api/days/${day}`);
 export const getAnki = () => request<AnkiStatsResponse>("/api/anki");
+export const getContents = () => request<ContentsResponse>("/api/contents");
+export const getContent = (id: string) =>
+  request<ContentDetailResponse>(`/api/contents/${encodeURIComponent(id)}`);
+export const search = (query: string, limit = 100) =>
+  request<SearchResponse>(`/api/search?q=${encodeURIComponent(query)}&limit=${limit}`);
 export const syncSource = (source: string) =>
   request<SyncOutcome>(`/api/sync/${encodeURIComponent(source)}`, { method: "POST" });

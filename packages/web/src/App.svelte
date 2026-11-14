@@ -4,8 +4,11 @@
   import { getHealth } from "./lib/api";
   import { router } from "./lib/router.svelte";
   import Anki from "./pages/Anki.svelte";
+  import Content from "./pages/Content.svelte";
+  import Contents from "./pages/Contents.svelte";
   import Day from "./pages/Day.svelte";
   import Home from "./pages/Home.svelte";
+  import Search from "./pages/Search.svelte";
   import Sources from "./pages/Sources.svelte";
 
   let health = $state<HealthResponse | null>(null);
@@ -29,6 +32,8 @@
 
   const links = [
     { href: "#/", page: "home", label: "Inicio" },
+    { href: "#/contenido", page: "contents", label: "Contenido" },
+    { href: "#/buscar", page: "search", label: "Buscar" },
     { href: "#/anki", page: "anki", label: "Anki" },
     { href: "#/fuentes", page: "sources", label: "Fuentes" },
   ] as const;
@@ -50,7 +55,13 @@
   </div>
   <nav aria-label="Secciones">
     {#each links as link (link.href)}
-      <a href={link.href} aria-current={router.route.page === link.page ? "page" : undefined}>{link.label}</a>
+      <a
+        href={link.href}
+        aria-current={router.route.page === link.page ||
+        (link.page === "contents" && router.route.page === "content")
+          ? "page"
+          : undefined}>{link.label}</a
+      >
     {/each}
   </nav>
 </header>
@@ -58,6 +69,12 @@
 <main>
   {#if router.route.page === "day"}
     <Day day={router.route.day} />
+  {:else if router.route.page === "contents"}
+    <Contents />
+  {:else if router.route.page === "content"}
+    <Content id={router.route.id} />
+  {:else if router.route.page === "search"}
+    <Search query={router.route.query} />
   {:else if router.route.page === "anki"}
     <Anki />
   {:else if router.route.page === "sources"}
@@ -112,6 +129,7 @@
 
   nav {
     display: flex;
+    flex-wrap: wrap;
     gap: 4px;
   }
 

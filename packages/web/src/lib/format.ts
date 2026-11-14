@@ -60,3 +60,16 @@ export const ORIGIN_LABELS: Record<string, string> = {
   "refold-1k": "Refold 1k",
   unknown: "Sin origen",
 };
+
+/**
+ * OCR text as one readable line: line breaks and ideographic spaces become single spaces (`\s` in a
+ * JavaScript regex includes the ideographic space, U+3000).
+ */
+export const cleanLine = (text: string) => text.replace(/\s+/g, " ").trim();
+
+export const KIND_LABELS: Record<string, string> = {
+  game: "Juego",
+  video: "Video",
+  book: "Libro",
+  deck: "Mazo",
+};
