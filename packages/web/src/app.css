@@ -1,13 +1,22 @@
+/* Tokens. Series colors follow the source in every chart: GSM blue, YouTube orange, Refold aqua,
+   cards without origin neutral gray, Anki reviews blue-gray. Validated (light and dark) with the
+   dataviz palette checks; the light aqua is under 3:1, so it always comes with a label or a table. */
 :root {
   --bg: #f7f7f5;
-  --surface: #ffffff;
+  --surface: #fcfcfb;
   --border: #e3e3df;
+  --grid: #e3e3df;
   --text: #1d1d1b;
-  --muted: #6b6b66;
-  --ok: #2f9e44;
-  --danger: #c92a2a;
+  --muted: #52514e;
+  --ok: #0ca30c;
+  --danger: #d03b3b;
   --warning: #b35c00;
-  color-scheme: light dark;
+  --series-gsm: #2a78d6;
+  --series-youtube: #eb6834;
+  --series-refold: #1baf7a;
+  --series-unknown: #8a8984;
+  --series-anki: #256abf;
+  color-scheme: light;
   font-family:
     system-ui,
     -apple-system,
@@ -19,14 +28,21 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #161615;
-    --surface: #1f1f1d;
+    --bg: #121211;
+    --surface: #1a1a19;
     --border: #33332f;
-    --text: #ececea;
-    --muted: #a0a09a;
-    --ok: #51cf66;
-    --danger: #ff6b6b;
+    --grid: #33332f;
+    --text: #f0efec;
+    --muted: #c3c2b7;
+    --ok: #0ca30c;
+    --danger: #e66767;
     --warning: #ffa94d;
+    --series-gsm: #3987e5;
+    --series-youtube: #d95926;
+    --series-refold: #199e70;
+    --series-unknown: #8a8984;
+    --series-anki: #5598e7;
+    color-scheme: dark;
   }
 }
 
@@ -36,7 +52,74 @@ body {
   color: var(--text);
 }
 
+a {
+  color: var(--series-gsm);
+}
+
 code {
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
   font-size: 0.9em;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.card h2 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.note {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.muted {
+  color: var(--muted);
+  margin: 0;
+}
+
+.error {
+  color: var(--danger);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

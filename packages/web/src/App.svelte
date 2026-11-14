@@ -1,220 +1,108 @@
 <script lang="ts">
-  import type { HealthResponse, SourceStatus } from "@mosaik/shared";
+  import type { HealthResponse } from "@mosaik/shared";
   import { onMount } from "svelte";
-  import { getHealth, getSources, syncSource } from "./lib/api";
-
-  const REFRESH_MS = 30_000;
+  import { getHealth } from "./lib/api";
+  import { router } from "./lib/router.svelte";
+  import Anki from "./pages/Anki.svelte";
+  import Day from "./pages/Day.svelte";
+  import Home from "./pages/Home.svelte";
+  import Sources from "./pages/Sources.svelte";
 
   let health = $state<HealthResponse | null>(null);
-  let sources = $state<SourceStatus[]>([]);
-  let error = $state<string | null>(null);
-  let syncing = $state<Record<string, boolean>>({});
+  let down = $state(false);
 
-  async function refresh() {
+  async function check() {
     try {
-      const [nextHealth, nextSources] = await Promise.all([getHealth(), getSources()]);
-      health = nextHealth;
-      sources = nextSources.sources;
-      error = null;
-    } catch (cause) {
+      health = await getHealth();
+      down = false;
+    } catch {
       health = null;
-      error = cause instanceof Error ? cause.message : String(cause);
+      down = true;
     }
-  }
-
-  async function sync(source: string) {
-    syncing[source] = true;
-    try {
-      await syncSource(source);
-    } finally {
-      syncing[source] = false;
-      await refresh();
-    }
-  }
-
-  const dateTime = new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" });
-  const when = (ms: number | null) => (ms === null ? "nunca" : dateTime.format(ms));
-
-  const number = new Intl.NumberFormat("es-AR");
-
-  /** `4368` → `1 h 13 min`. */
-  function duration(seconds: number): string {
-    const totalMinutes = Math.round(seconds / 60);
-    const hours = Math.floor(totalMinutes / 60);
-    const rest = totalMinutes % 60;
-    return hours > 0 ? `${hours} h ${rest} min` : `${rest} min`;
-  }
-
-  /** What each connector reports, in words. Keys not listed here are not shown. */
-  const SUMMARY_LABELS: Record<string, (value: number) => string> = {
-    notes: (value) => `${number.format(value)} notas`,
-    reviews: (value) => `${number.format(value)} repasos`,
-    reviewsNew: (value) => `${number.format(value)} repasos nuevos`,
-    unknownOrigin: (value) => `${number.format(value)} sin origen`,
-    lines: (value) => `${number.format(value)} líneas`,
-    sessions: (value) => `${number.format(value)} sesiones`,
-    readingSeconds: (value) => `${duration(value)} de lectura`,
-    cardsFromGsm: (value) => `${number.format(value)} tarjetas minadas`,
-    videos: (value) => `${number.format(value)} videos`,
-    watchSeconds: (value) => `${duration(value)} de video`,
-    days: (value) => `${number.format(value)} días`,
-  };
-
-  function summaryText(summary: Record<string, unknown> | null): string {
-    if (!summary) return "";
-    return Object.entries(SUMMARY_LABELS)
-      .filter(([key]) => typeof summary[key] === "number")
-      .map(([key, format]) => format(summary[key] as number))
-      .join(" · ");
-  }
-
-  function warningsOf(summary: Record<string, unknown> | null): string[] {
-    const warnings = summary?.warnings;
-    return Array.isArray(warnings) ? warnings.filter((item): item is string => typeof item === "string") : [];
   }
 
   onMount(() => {
-    void refresh();
-    const timer = setInterval(() => void refresh(), REFRESH_MS);
+    void check();
+    const timer = setInterval(() => void check(), 30_000);
     return () => clearInterval(timer);
   });
+
+  const links = [
+    { href: "#/", page: "home", label: "Inicio" },
+    { href: "#/anki", page: "anki", label: "Anki" },
+    { href: "#/fuentes", page: "sources", label: "Fuentes" },
+  ] as const;
 </script>
 
+<header>
+  <div class="brand">
+    <h1><a href="#/">Mosaik</a></h1>
+    <p class="status" class:down>
+      <span class="dot" aria-hidden="true"></span>
+      {#if health}
+        Hub conectado · v{health.version}
+      {:else if down}
+        Sin conexión con el hub. ¿Está corriendo <code>npm run dev</code>?
+      {:else}
+        Conectando…
+      {/if}
+    </p>
+  </div>
+  <nav aria-label="Secciones">
+    {#each links as link (link.href)}
+      <a href={link.href} aria-current={router.route.page === link.page ? "page" : undefined}>{link.label}</a>
+    {/each}
+  </nav>
+</header>
+
 <main>
-  <header>
-    <h1>Mosaik</h1>
-    <p class="tagline">Tus métricas de alemán, juntas.</p>
-  </header>
-
-  <section class="card" aria-labelledby="hub-title">
-    <h2 id="hub-title">Hub</h2>
-    {#if health}
-      <p class="status ok">
-        <span class="dot" aria-hidden="true"></span>
-        Conectado · versión {health.version} · esquema v{health.schemaVersion}
-      </p>
-    {:else if error}
-      <p class="status down">
-        <span class="dot" aria-hidden="true"></span>
-        Sin conexión con el hub ({error}). ¿Está corriendo <code>npm run dev</code>?
-      </p>
-    {:else}
-      <p class="status">Conectando…</p>
-    {/if}
-  </section>
-
-  <section class="card" aria-labelledby="sources-title">
-    <h2 id="sources-title">Fuentes</h2>
-    {#if sources.length === 0}
-      <p class="muted">El hub todavía no informó ninguna fuente.</p>
-    {:else}
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Fuente</th>
-            <th scope="col">Última sincronización</th>
-            <th scope="col">Estado</th>
-            <th scope="col"><span class="visually-hidden">Acciones</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each sources as source (source.source)}
-            <tr>
-              <td>
-                <span class="source-name">{source.source}</span>
-                {#if summaryText(source.lastSummary)}
-                  <span class="summary">{summaryText(source.lastSummary)}</span>
-                {/if}
-                {#each warningsOf(source.lastSummary) as warning (warning)}
-                  <span class="warning">{warning}</span>
-                {/each}
-              </td>
-              <td>{when(source.lastOkAt)}</td>
-              <td>
-                {#if source.running || syncing[source.source]}
-                  Sincronizando…
-                {:else if source.lastError}
-                  <span class="error" title={source.lastError}>Error: {source.lastError}</span>
-                {:else if source.lastOkAt}
-                  OK
-                {:else}
-                  —
-                {/if}
-              </td>
-              <td>
-                {#if source.registered}
-                  <button
-                    type="button"
-                    disabled={source.running || syncing[source.source]}
-                    onclick={() => sync(source.source)}
-                  >
-                    Sincronizar
-                  </button>
-                {:else}
-                  <!-- A source that pushes (Deuchan): the hub does not fetch it -->
-                  <span class="summary">la envía la extensión</span>
-                {/if}
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    {/if}
-  </section>
+  {#if router.route.page === "day"}
+    <Day day={router.route.day} />
+  {:else if router.route.page === "anki"}
+    <Anki />
+  {:else if router.route.page === "sources"}
+    <Sources />
+  {:else}
+    <Home />
+  {/if}
 </main>
 
 <style>
-  main {
-    max-width: 880px;
-    margin: 0 auto;
-    padding: 32px 16px 64px;
-  }
-
   header {
-    margin-bottom: 24px;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 16px 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+    justify-content: space-between;
   }
 
   h1 {
     margin: 0;
-    font-size: 2rem;
+    font-size: 1.75rem;
     letter-spacing: -0.02em;
   }
 
-  .tagline {
-    margin: 4px 0 0;
-    color: var(--muted);
-  }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin-bottom: 16px;
-  }
-
-  h2 {
-    margin: 0 0 8px;
-    font-size: 1rem;
-    font-weight: 600;
+  h1 a {
+    color: inherit;
+    text-decoration: none;
   }
 
   .status {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin: 0;
+    gap: 6px;
+    margin: 2px 0 0;
+    color: var(--muted);
+    font-size: 0.8125rem;
   }
 
   .dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background: var(--muted);
-    flex: none;
-  }
-
-  .status.ok .dot {
     background: var(--ok);
   }
 
@@ -222,69 +110,31 @@
     background: var(--danger);
   }
 
-  .muted {
-    color: var(--muted);
-    margin: 0;
+  nav {
+    display: flex;
+    gap: 4px;
   }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  th,
-  td {
-    text-align: left;
-    padding: 8px 4px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  th {
-    font-weight: 500;
-    color: var(--muted);
-    font-size: 0.875rem;
-  }
-
-  .error {
-    color: var(--danger);
-  }
-
-  .source-name {
-    font-weight: 500;
-  }
-
-  .summary,
-  .warning {
-    display: block;
-    font-size: 0.8125rem;
-    color: var(--muted);
-  }
-
-  .warning {
-    color: var(--warning);
-  }
-
-  button {
-    font: inherit;
-    padding: 4px 12px;
+  nav a {
+    padding: 6px 12px;
     border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--bg);
+    color: var(--muted);
+    text-decoration: none;
+  }
+
+  nav a:hover {
     color: var(--text);
-    cursor: pointer;
   }
 
-  button:disabled {
-    opacity: 0.5;
-    cursor: default;
+  nav a[aria-current="page"] {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
   }
 
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 8px 16px 64px;
   }
 </style>
