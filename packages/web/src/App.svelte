@@ -35,20 +35,33 @@
   const dateTime = new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" });
   const when = (ms: number | null) => (ms === null ? "nunca" : dateTime.format(ms));
 
-  /** What each connector reports, in words. Keys not listed here are not shown. */
-  const SUMMARY_LABELS: Record<string, string> = {
-    notes: "notas",
-    reviews: "repasos",
-    reviewsNew: "repasos nuevos",
-    unknownOrigin: "sin origen",
-  };
   const number = new Intl.NumberFormat("es-AR");
+
+  /** `4368` → `1 h 13 min`. */
+  function duration(seconds: number): string {
+    const totalMinutes = Math.round(seconds / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const rest = totalMinutes % 60;
+    return hours > 0 ? `${hours} h ${rest} min` : `${rest} min`;
+  }
+
+  /** What each connector reports, in words. Keys not listed here are not shown. */
+  const SUMMARY_LABELS: Record<string, (value: number) => string> = {
+    notes: (value) => `${number.format(value)} notas`,
+    reviews: (value) => `${number.format(value)} repasos`,
+    reviewsNew: (value) => `${number.format(value)} repasos nuevos`,
+    unknownOrigin: (value) => `${number.format(value)} sin origen`,
+    lines: (value) => `${number.format(value)} líneas`,
+    sessions: (value) => `${number.format(value)} sesiones`,
+    readingSeconds: (value) => `${duration(value)} de lectura`,
+    cardsFromGsm: (value) => `${number.format(value)} tarjetas minadas`,
+  };
 
   function summaryText(summary: Record<string, unknown> | null): string {
     if (!summary) return "";
     return Object.entries(SUMMARY_LABELS)
       .filter(([key]) => typeof summary[key] === "number")
-      .map(([key, label]) => `${number.format(summary[key] as number)} ${label}`)
+      .map(([key, format]) => format(summary[key] as number))
       .join(" · ");
   }
 
@@ -90,9 +103,7 @@
   <section class="card" aria-labelledby="sources-title">
     <h2 id="sources-title">Fuentes</h2>
     {#if sources.length === 0}
-      <p class="muted">
-        Todavía no hay conectores. Anki llega en la fase 1, GameSentenceMiner en la 2 y Deuchan en la 3.
-      </p>
+      <p class="muted">El hub todavía no informó ninguna fuente.</p>
     {:else}
       <table>
         <thead>
