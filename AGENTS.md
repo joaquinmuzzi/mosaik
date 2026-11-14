@@ -90,6 +90,7 @@ npm run lint
 npm run format
 npm run verify:anki  # sincroniza con el Anki real y compara repasos por día (Anki abierto)
 npm run verify:gsm   # sincroniza con el gsm.db real y compara con los totales diarios de GSM
+npm run autostart:install  # compila y crea la tarea programada que arranca el hub al iniciar sesión
 ```
 
 Variables de entorno (con valores por defecto razonables): `HUB_PORT` (7300), `HUB_DB_PATH`,

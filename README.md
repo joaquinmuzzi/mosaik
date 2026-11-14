@@ -30,7 +30,24 @@ Todo corre en esta computadora: el servidor escucha solo en `127.0.0.1` y ningú
 - **Fase 5 (contenido y buscador)**: la lista de juegos y videos, la ficha de cada uno (tiempo por día,
   tarjetas con su oración, sesiones, últimas oraciones) y el buscador de todo lo leído en GSM.
 
-Sigue la fase 6: comparar con las estadísticas propias de cada herramienta y arrancar con Windows.
+- **Fase 6 (validación y arranque)**: los números se comparan con los de Anki, GSM y Deuchan (ver
+  `docs/plan.md`), y el hub puede arrancar solo al iniciar sesión en Windows.
+
+## Arranque con Windows
+
+```bash
+npm run autostart:install
+```
+
+Compila y crea la tarea programada "Mosaik" de tu usuario (no hace falta ser administrador): al iniciar sesión
+arranca el hub sin ventana, con los logs en `%LOCALAPPDATA%Mosaikhub.log`. El dashboard queda en
+<http://127.0.0.1:7300>. Después de actualizar Mosaik, volvé a correr ese comando para recompilar.
+
+- `npm run autostart:status`: si la tarea existe y si el hub responde.
+- `npm run autostart:uninstall`: la para y la borra.
+
+Para desarrollar con `npm run dev`, pará antes la tarea (los dos usan el puerto 7300), en PowerShell:
+`Stop-ScheduledTask -TaskName Mosaik`.
 
 ## Requisitos
 
@@ -71,6 +88,7 @@ y abrir <http://127.0.0.1:7300>.
 | `npm run lint` | ESLint |
 | `npm run format` / `npm run format:check` | Prettier (los `.md` quedan fuera) |
 | `npm run verify:anki` | Con Anki abierto: sincroniza y compara los repasos por día con las estadísticas de Anki (`-- --no-sync` para solo comparar) |
+| `npm run autostart:install` / `:status` / `:uninstall` | Arranque automático con Windows (ver arriba) |
 | `npm run verify:gsm` | Sincroniza con `gsm.db` y compara el tiempo de lectura con los totales diarios de GSM (`-- --no-sync` para solo comparar) |
 
 ## Configuración

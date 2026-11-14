@@ -386,6 +386,17 @@ Cada fase termina con tests en verde y sus criterios cumplidos.
 **Fase 6 — Validación y pulido**
 - Comparar con las estadísticas propias de GSM, Deuchan y Anki; arranque automático con Windows (tarea
   programada al iniciar sesión).
+- *Resultado (2026-11-14), con los datos reales:*
+  - Anki (`npm run verify:anki`): 57 de 59 días exactos; los otros 2 difieren en 1 repaso de tarjetas borradas.
+  - GSM (`npm run verify:gsm`): 0,0000 % contra `game_daily_rollup`.
+  - Deuchan: cada día coincide con su dashboard (hoy 0:38 en los dos). Las sumas difieren unos segundos (7 días:
+    43:48 contra 43:50; 30 días: 3:07:18 contra 3:07:25) porque `day_total` va en segundos enteros redondeados
+    hacia abajo y el dashboard de Deuchan suma los valores con decimales. Se acepta: es menos de 1 s por día.
+  - Arranque con Windows: `npm run autostart:install` compila y crea la tarea programada "Mosaik" del usuario (sin
+    administrador), que al iniciar sesión corre el hub compilado sin ventana (`conhost --headless`), con los logs en
+    `%LOCALAPPDATA%\Mosaik\hub.log` (`--log-file`), y lo reinicia hasta 3 veces si falla. Instalada y probada en esta
+    computadora. Con la tarea corriendo, el dashboard está en `http://127.0.0.1:7300`; para desarrollar con
+    `npm run dev`, parar antes la tarea (los dos usan el puerto 7300).
 
 Ideas para después: lectura (ttu u otros lectores web), subtítulos de YouTube en `lines`, nota de
 comprensión por video en Deuchan, metas, API compatible con Kechimochi (evaluar), exportar CSV/JSON.
