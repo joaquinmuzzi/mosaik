@@ -27,6 +27,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     timeZone: "America/Buenos_Aires",
     syncIntervalMinutes: 5,
     logLevel: "silent",
+    targetLanguage: "de",
     ...overrides,
   };
 }

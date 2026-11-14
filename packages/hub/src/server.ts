@@ -13,7 +13,14 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
-import type { HealthResponse, SourceStatus, SourcesResponse } from "@mosaik/shared";
+import type {
+  AnkiStatsResponse,
+  HealthResponse,
+  OverviewResponse,
+  SourceStatus,
+  SourcesResponse,
+} from "@mosaik/shared";
+import { ankiStats, dayDetail, isDay, overview } from "./api/dashboard.ts";
 import Fastify, { type FastifyInstance, type FastifyServerOptions, LogController } from "fastify";
 import type { Config } from "./config.ts";
 import { listConnectorStates } from "./connectors/state.ts";
@@ -123,6 +130,26 @@ export async function buildServer({
     });
     return { sources };
   });
+
+  const dashboard = {
+    timeZone: config.timeZone,
+    cutoffHour: config.dayCutoffHour,
+    targetLanguage: config.targetLanguage,
+  };
+
+  app.get<{ Querystring: { days?: string } }>("/api/overview", async (request): Promise<OverviewResponse> => {
+    const days = Math.min(Math.max(Number(request.query.days) || 30, 1), 366);
+    return overview(db, dashboard, days);
+  });
+
+  app.get<{ Params: { day: string } }>("/api/days/:day", async (request, reply) => {
+    if (!isDay(request.params.day)) {
+      return reply.code(400).send({ error: "invalid_day", message: "Use YYYY-MM-DD" });
+    }
+    return dayDetail(db, dashboard, request.params.day);
+  });
+
+  app.get("/api/anki", async (): Promise<AnkiStatsResponse> => ankiStats(db, dashboard));
 
   app.post("/api/sync", async () => ({ results: await scheduler.runAll() }));
 

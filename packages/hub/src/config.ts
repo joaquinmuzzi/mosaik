@@ -23,6 +23,8 @@ export interface Config {
   timeZone: string;
   syncIntervalMinutes: number;
   logLevel: "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";
+  /** The language being learned: only its sessions count as immersion. */
+  targetLanguage: string;
 }
 
 type Env = Record<string, string | undefined>;
@@ -66,6 +68,7 @@ const envSchema = z.object({
   TZ_NAME: optional(z.string().refine(isValidTimeZone, { message: "unknown IANA time zone" })),
   // Up to a day
   SYNC_INTERVAL_MINUTES: optional(z.coerce.number().min(1).max(1440)),
+  TARGET_LANGUAGE: optional(z.string().regex(/^[a-z]{2,3}$/)),
   LOG_LEVEL: optional(z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])),
 });
 
@@ -92,5 +95,6 @@ export function loadConfig(env: Env = process.env, platform: NodeJS.Platform = p
     timeZone: values.TZ_NAME ?? "America/Buenos_Aires",
     syncIntervalMinutes: values.SYNC_INTERVAL_MINUTES ?? 5,
     logLevel: values.LOG_LEVEL ?? "info",
+    targetLanguage: values.TARGET_LANGUAGE ?? "de",
   };
 }

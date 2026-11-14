@@ -17,6 +17,7 @@ describe("loadConfig", () => {
       timeZone: "America/Buenos_Aires",
       syncIntervalMinutes: 5,
       logLevel: "info",
+      targetLanguage: "de",
     });
   });
 
