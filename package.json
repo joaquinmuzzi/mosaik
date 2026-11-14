@@ -1,0 +1,44 @@
+{
+  "name": "mosaik",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local-first hub that gathers language-learning stats (Anki, GameSentenceMiner, Deuchan) into one dashboard.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "packages/shared",
+    "packages/hub",
+    "packages/web"
+  ],
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names hub,web --prefix-colors blue,magenta \"npm:dev:hub\" \"npm:dev:web\"",
+    "dev:hub": "node --conditions=source --env-file-if-exists=.env --watch packages/hub/src/main.ts --pretty",
+    "dev:web": "npm run dev -w @mosaik/web",
+    "build": "tsc -b && npm run build -w @mosaik/web",
+    "start": "node --env-file-if-exists=.env packages/hub/dist/main.js",
+    "typecheck": "tsc -b && tsc -p tsconfig.tests.json && npm run check -w @mosaik/web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.2",
+    "concurrently": "^10.0.7",
+    "eslint": "^10.15.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-svelte": "^3.24.1",
+    "globals": "^17.14.0",
+    "pino-pretty": "^13.2.0",
+    "prettier": "^3.10.1",
+    "prettier-plugin-svelte": "^4.1.1",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.0"
+  }
+}

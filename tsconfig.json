@@ -1,0 +1,5 @@
+{
+  // Build of the Node packages (`tsc -b`). The dashboard is checked by svelte-check and built by Vite.
+  "files": [],
+  "references": [{ "path": "packages/shared" }, { "path": "packages/hub" }]
+}
