@@ -1,0 +1,26 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local configuration and data: never commit the user's databases, exports or screenshots
+.env
+.env.*
+!.env.example
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.anki2
+*.apkg
+*.colpkg
+
+# Editors and tools
+.vscode/
+.idea/
+.claude/settings.local.json
+*.log
+.DS_Store
+Thumbs.db

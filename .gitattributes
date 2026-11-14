@@ -1,0 +1,5 @@
+# LF everywhere, also on Windows: migrations are checksummed and must read the same on every machine
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
