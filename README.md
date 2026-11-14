@@ -10,9 +10,12 @@ Todo corre en esta computadora: el servidor escucha solo en `127.0.0.1` y ningú
 
 ## Estado
 
-**Fase 0 (esqueleto)**: hub con API de salud, migraciones, programador de conectores (todavía sin
-conectores) y un dashboard mínimo. Los conectores llegan en las fases siguientes: Anki (1),
-GameSentenceMiner (2), Deuchan (3).
+- **Fase 0 (esqueleto)**: hub con API de salud, migraciones, programador de conectores y un dashboard mínimo.
+- **Fase 1 (Anki)**: con Anki abierto, el hub copia notas, tarjetas y repasos de `German Mining` y
+  `Refold Alemán-mil` al arrancar y cada 5 minutos, solo leyendo. Con Anki cerrado anota el error y
+  reintenta. La fuente aparece en el dashboard con su resumen y un botón para sincronizar.
+
+Siguen GameSentenceMiner (fase 2) y Deuchan (fase 3).
 
 ## Requisitos
 
@@ -52,6 +55,7 @@ y abrir <http://127.0.0.1:7300>.
 | `npm run typecheck` | TypeScript del hub y de los tests, y `svelte-check` del dashboard |
 | `npm run lint` | ESLint |
 | `npm run format` / `npm run format:check` | Prettier (los `.md` quedan fuera) |
+| `npm run verify:anki` | Con Anki abierto: sincroniza y compara los repasos por día con las estadísticas de Anki (`-- --no-sync` para solo comparar) |
 
 ## Configuración
 
@@ -64,6 +68,8 @@ Todas son opcionales:
 | `HUB_DB_PATH` | `%LOCALAPPDATA%\Mosaik\mosaik.db` | Base propia de Mosaik |
 | `GSM_DB_PATH` | `%APPDATA%\GameSentenceMiner\gsm.db` | Base de GSM, que se abre solo para leer |
 | `ANKICONNECT_URL` | `http://127.0.0.1:8765` | AnkiConnect |
+| `ANKI_DECKS` | `German Mining,Refold Alemán-mil` | Mazos que se leen (con sus submazos), separados por coma |
+| `ANKI_REFOLD_DECKS` | `Refold Alemán-mil` | De esos, los mazos armados: sus tarjetas cuentan como `refold-1k` |
 | `DAY_CUTOFF_HOUR` | `4` | Hora local en la que empieza un día (como Anki) |
 | `TZ_NAME` | `America/Buenos_Aires` | Zona horaria para calcular los días |
 | `SYNC_INTERVAL_MINUTES` | `5` | Cada cuánto corren los conectores |

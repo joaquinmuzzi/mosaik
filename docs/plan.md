@@ -49,21 +49,47 @@ del progreso y en qué contexto apareció cada palabra.
 ### 1.2 Anki (AnkiConnect)
 
 - `http://127.0.0.1:8765`, POST con `{ "action", "version": 6, "params" }`. Solo responde con Anki abierto.
-- **Mazos:** `German Mining` (tarjetas minadas; note type `Kiku Deutsch`) y `Refold Alemán-mil` (mazo armado,
-  sin origen de inmersión → categoría propia `refold-1k`).
-- **Acciones a usar:**
+- **Mazos:** `German Mining` (tarjetas minadas) y `Refold Alemán-mil` (mazo armado, sin origen de inmersión →
+  categoría propia `refold-1k`). Configurables con `ANKI_DECKS` y `ANKI_REFOLD_DECKS`.
+- **Verificado en el Anki real (2026-11-14, fase 1):**
+  - `German Mining` tiene notas de **dos** note types: `Kiku` (la mayoría, las más viejas) y `Kiku Deutsch`.
+    Ninguno tiene `Word` ni `Source`: la palabra está en **`Expression`** y el origen en **`MiscInfo`**.
+    `Refold Alemán-mil` usa el note type `Alemán-mil`, con la palabra en `Palabra`.
+  - `MiscInfo` lo llena Yomitan con `{document-title}`: en YouTube trae el contador de notificaciones
+    (`(15) …`), a veces el sufijo ` - YouTube`, entidades HTML (`&#x27;`, `&amp;`), marcas invisibles alrededor
+    de `@nombres` y a veces un `<span data-group-id>`. También hay páginas que no son YouTube (textos web).
+  - Las tarjetas minadas desde GSM tienen los tags `GSM` y `Game::<juego>` (y a veces `overlay`), y en
+    `MiscInfo` el **nombre del juego** (no el título de la pestaña TextFeed).
+  - Los `noteId` de `Refold Alemán-mil` son de 2022: la fecha en que se armó el mazo compartido, no la de cuando
+    el usuario lo empezó. Para ese mazo, la "fecha de alta" útil es el primer repaso.
+  - `mod` de notas y tarjetas está en **segundos**, no en ms.
+  - El AnkiConnect instalado es una reescritura con una capa "legacy". Dos cosas importan:
+    - `cardReviews` y `getLatestReviewID` **crean el mazo si no existe** (`decks.create`). El conector
+      comprueba con `deckNamesAndIds` que el mazo exista antes de pedir sus repasos, y no usa `getLatestReviewID`.
+    - `cardsInfo` acepta `fields: [...]` para devolver solo esas propiedades. Sin eso trae la pregunta, la
+      respuesta y el CSS renderizados (varios KB por tarjeta), que no se guardan.
+  - `type` de un repaso llega hasta **5**: 4 manual y 5 **reprogramado** (lo que escribe FSRS al reprogramar
+    todo; hubo 440 en un día). Esos tienen `ease = 0` y no son repasos.
+  - `getNumCardsReviewedByDay` cuenta **toda la colección** (incluso repasos de tarjetas borradas) con el corte de
+    día de Anki, y solo los tipos 0–3 (aprendizaje, repaso, reaprendizaje, filtrado).
+- **Acciones que usa el conector** (todas de lectura; el cliente rechaza cualquier otra):
 
 | Acción | Devuelve | Uso |
 |---|---|---|
-| `findNotes` (`query: "deck:\"German Mining\""`) | IDs de nota | Listado. |
-| `notesInfo` (`notes: [...]`) | `noteId` (= creación en ms), `modelName`, `fields` (`Word`, `Source`, …), `tags`, `cards`, `mod` | Cuándo y de dónde se minó cada palabra. |
-| `findCards` / `cardsInfo` | `deckName`, `interval`, `due`, `reps`, `lapses`, `type`, `queue`, `mod` | Estado actual (nuevas, jóvenes, maduras). |
-| `cardReviews` (`deck`, `startID`) | filas `[id, cid, usn, ease, ivl, lastIvl, factor, time, type]` con `id > startID` | **Sincronización incremental de repasos.** `id` = hora del repaso en ms; `ease` 1–4; `time` = ms que tardó; `type` 0 aprendizaje, 1 repaso, 2 reaprendizaje, 3 filtrado, 4 manual. |
-| `getLatestReviewID` (`deck`) | último `id` de repaso | Saber si hay algo nuevo. |
-| `notesModTime` / `cardsModTime` | `mod` por ID | Detectar notas o tarjetas cambiadas. |
+| `deckNamesAndIds` | nombre → id | Comprobar que cada mazo exista (ver arriba). |
+| `findNotes` / `findCards` (`query: "deck:\"German Mining\""`) | IDs | Listado completo en cada corrida (barato). |
+| `notesModTime` / `cardsModTime` | `mod` por ID (segundos) | Pedir solo lo nuevo o cambiado. |
+| `notesInfo` (`notes: [...]`) | `noteId` (= creación en ms), `modelName`, `fields`, `tags`, `cards`, `mod` | Cuándo y de dónde se minó cada palabra. |
+| `cardsInfo` (`cards`, `fields`) | `deckName`, `interval`, `due`, `reps`, `lapses`, `type`, `queue`, `mod` | Estado actual (nuevas, jóvenes, maduras). |
+| `cardReviews` (`deck`, `startID`) | filas `[id, cid, usn, ease, ivl, lastIvl, factor, time, type]` con `id > startID` | **Repasos incrementales.** `id` = hora en ms; `ease` 1–4 (0 en manuales/reprogramados); `time` = ms que tardó; `type` 0 aprendizaje, 1 repaso, 2 reaprendizaje, 3 filtrado, 4 manual, 5 reprogramado. Solo tarjetas que están hoy en el mazo. |
+| `getNumCardsReviewedByDay` | `[día, cantidad]` | Solo para verificar (`npm run verify:anki`). |
 
-- Cursor del conector: último `id` de `cardReviews` por mazo, y `mod` máximo de notas vistas.
-- Alternativa para la carga inicial: leer `collection.anki2` directo. Evitarla mientras Anki esté abierto.
+- Cursor del conector: último `id` de `cardReviews` por mazo. Las notas y tarjetas se comparan por `mod`.
+  Si aparece una tarjeta ya repasada que no estaba (se movió desde otro mazo), ese mazo se relee desde 0.
+- Notas o tarjetas que ya no están en un mazo leído quedan marcadas (`removed_at`), no se borran; sus repasos
+  se conservan. Si un mazo no aparece (por ejemplo, renombrado), sus notas no se marcan y se avisa.
+- Alternativa para la carga inicial: leer `collection.anki2` directo. No hizo falta: la carga completa por
+  AnkiConnect tarda unos 4 s.
 
 ### 1.3 Deuchan (YouTube)
 
@@ -92,11 +118,12 @@ del progreso y en qué contexto apareció cada palabra.
 ### 1.4 asbplayer y Yomitan
 
 - No guardan estadísticas. Su rastro es la nota de Anki: hora de creación y campos.
-- Hoy Yomitan escribe `Source = {document-title}`. En YouTube es el título de la página (frágil para unir).
-- **Recomendación:** agregar a `Kiku Deutsch` un campo `URL` y llenarlo con `{url}` en Yomitan y con el campo
-  de URL de asbplayer (verificar ambos). Con el ID de video en la nota, la unión con Deuchan es exacta.
-- Al minar desde la pestaña **GSM TextFeed** con Yomitan, `{document-title}` sería el título de esa pestaña;
-  GSM escribe el nombre del juego en `Source`. Verificar cuál queda (sección 6).
+- Hoy Yomitan escribe `MiscInfo = {document-title}` (verificado en la fase 1; no hay campo `Source`). En
+  YouTube es el título de la pestaña, con ruido (ver 1.2): frágil para unir.
+- **Recomendación:** agregar a `Kiku` y `Kiku Deutsch` un campo `URL` y llenarlo con `{url}` en Yomitan y con el
+  campo de URL de asbplayer (verificar ambos). Con el ID de video en la nota, la unión con Deuchan es exacta.
+- Al minar desde la pestaña **GSM TextFeed** con Yomitan, GSM deja en `MiscInfo` el **nombre del juego** y agrega
+  los tags `GSM` y `Game::<juego>` (verificado en la fase 1).
 
 ## 2. Cruces que la app tiene que poder responder
 
@@ -155,8 +182,11 @@ CREATE TABLE lines (                -- oraciones vistas, para el buscador
 );
 CREATE VIRTUAL TABLE lines_fts USING fts5(text, content='lines', content_rowid='rowid');
 CREATE TABLE cards (
-  note_id INTEGER PRIMARY KEY, word TEXT, deck TEXT, origin TEXT NOT NULL,  -- 'gsm'|'youtube'|'refold-1k'|'unknown'
-  content_id TEXT, line_id TEXT, created_ts INTEGER NOT NULL
+  note_id INTEGER PRIMARY KEY, word TEXT, deck TEXT, model TEXT,
+  origin TEXT NOT NULL,             -- 'gsm'|'youtube'|'refold-1k'|'unknown'
+  content_id TEXT, line_id TEXT,
+  source_title TEXT,                -- MiscInfo limpio (título de video/página, o nombre del juego)
+  created_ts INTEGER NOT NULL
 );
 CREATE TABLE reviews (
   review_id INTEGER PRIMARY KEY, note_id INTEGER, card_id INTEGER, ts INTEGER NOT NULL,
@@ -164,12 +194,19 @@ CREATE TABLE reviews (
 );
 ```
 
-Reglas de atribución del origen de una tarjeta, en orden:
+La fase 1 creó `raw_anki_notes`, `raw_anki_cards`, `raw_anki_reviews`, `cards` y `reviews`
+(`0002_anki.sql`): las tablas crudas llevan columnas propias (estado de la tarjeta, `synced_at`, `removed_at`) y
+`cards`/`reviews` se reconstruyen enteras desde lo crudo después de cada sincronización. Para contar repasos
+solo valen los tipos 0–3 (como Anki); los 4 y 5 se guardan pero no cuentan.
+
+Reglas de atribución del origen de una tarjeta, en orden (la fase 1 implementa la 4 y la 5):
 1. Su `note_id` aparece en `note_ids` de una línea de GSM → `gsm`, con `content_id` y `line_id`.
+   Respaldo si `note_ids` no está: tag `GSM` + tag `Game::<juego>` / `MiscInfo` con el nombre del juego.
 2. Tiene campo `URL` con un video de YouTube → `youtube`, `content_id = yt:<videoId>`.
-3. `Source` coincide con el título de un video de Deuchan del mismo día (normalizando " - YouTube") → `youtube`.
-4. Está en `Refold Alemán-mil` → `refold-1k`.
-5. Si no, `unknown` (y se muestra cuántas hay, para mejorar las reglas).
+3. `source_title` (`MiscInfo` limpio: sin `(N) `, sin ` - YouTube`, sin HTML) coincide con el título de un video
+   de Deuchan del mismo día → `youtube`.
+4. Está en `Refold Alemán-mil` (o un submazo) → `refold-1k`.
+5. Si no, `unknown` (y se muestra cuántas hay, para mejorar las reglas). Hoy son las 40 minadas.
 
 Evento de ingesta (en `packages/shared/src/ingest.ts`, validado con zod; detalle en
 [`docs/ingest-api.md`](ingest-api.md)). Horas en **ms UTC**:
@@ -231,6 +268,9 @@ Cada fase termina con tests en verde y sus criterios cumplidos.
 - Llenar `raw_anki_*`, `cards` (reglas 4–5 de atribución por ahora) y `reviews`.
 - *Criterio:* tests con respuestas grabadas; correr dos veces no duplica; con Anki cerrado registra error y no
   rompe; contra el Anki real, el total de repasos por día coincide con `getNumCardsReviewedByDay`.
+- *Resultado (2026-11-14):* 1040 notas y 6851 repasos en ~4 s; la segunda corrida no trae nada. Con
+  `npm run verify:anki`, 57 de 59 días coinciden exacto; en los otros 2 Anki cuenta 1 repaso más cada día, que
+  son de tarjetas borradas (comprobado leyendo todos los mazos de la colección). Mosaik nunca cuenta de más.
 
 **Fase 2 — Conector de GSM**
 - Abrir `gsm.db` en solo lectura (ruta autodetectada o `GSM_DB_PATH`).
@@ -266,8 +306,11 @@ comprensión por video en Deuchan, metas, API compatible con Kechimochi (evaluar
 
 - En la `gsm.db` real: valor de `language` para alemán; que `note_ids` se llene al minar desde GSM TextFeed con
   Yomitan; que las tablas de tokenización estén vacías.
-- Qué queda en `Source` de las tarjetas de Ace Attorney (título de la pestaña TextFeed o nombre del juego).
-- Que Yomitan (`{url}`) y asbplayer puedan llenar un campo `URL` en `Kiku Deutsch`.
+- ~~Qué queda en `Source` de las tarjetas de Ace Attorney.~~ Verificado en la fase 1: no hay `Source`; en
+  `MiscInfo` queda el **nombre del juego** (`Phoenix Wright: Ace Attorney Trilogy`), con tags `GSM` y
+  `Game::PhoenixWright:AceAttorneyTrilogy`.
+- Que Yomitan (`{url}`) y asbplayer puedan llenar un campo `URL` en `Kiku` y `Kiku Deutsch` (hay que
+  agregarlo a los dos note types, o pasar todo a uno).
 - Corte de día preferido (por defecto 4:00).
 - ~~Si `node:sqlite` alcanza (FTS5 incluido) o hace falta `better-sqlite3`.~~ Verificado en la fase 0:
   Node 24.19 trae SQLite 3.53 con FTS5 (hay un test que lo comprueba).

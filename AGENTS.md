@@ -23,7 +23,7 @@ Nombre de trabajo del proyecto: `Mosaik`.
 
 | Fuente | Cómo se lee | Datos clave |
 |---|---|---|
-| **Anki** | AnkiConnect, `http://127.0.0.1:8765`, solo con Anki abierto | Mazos `German Mining` (note type `Kiku Deutsch`) y `Refold Alemán-mil`. Notas (`notesInfo`), estado de tarjetas (`cardsInfo`), repasos incrementales (`cardReviews(deck, startID)`). |
+| **Anki** | AnkiConnect, `http://127.0.0.1:8765`, solo con Anki abierto | Mazos `German Mining` (note types `Kiku` y `Kiku Deutsch`: palabra en `Expression`, origen en `MiscInfo`) y `Refold Alemán-mil`. Notas (`notesInfo`), estado de tarjetas (`cardsInfo`), repasos incrementales (`cardReviews(deck, startID)`). Ojo: `cardReviews` crea el mazo si no existe. |
 | **GameSentenceMiner (GSM)** | SQLite `%APPDATA%\GameSentenceMiner\gsm.db`, **solo lectura** | `game_lines` (una fila por línea leída, con `timestamp`, `game_id`, `note_ids`), `games`, `game_daily_rollup`, `stats_reading_breaks`. |
 | **Deuchan** (extensión de Chrome del usuario, repo `joaquinmuzzi/Deuchan`) | Push: la extensión manda intervalos al hub por HTTP | Intervalos `{ id, from, to, seconds, videoId, title }`. Hoy solo guarda totales por día en `chrome.storage.local`; hay que agregarle el envío. |
 
@@ -77,19 +77,23 @@ docs/
   `reviews`) → vistas o consultas de métricas. Ver `docs/plan.md`, sección 3.
 - **API de lectura** para el dashboard bajo `/api/*`; el dashboard nunca lee la base directo.
 
-## Comandos (a crear en la fase 0)
+## Comandos
 
 ```
 npm install
-npm run dev        # hub + web en modo desarrollo
+npm run dev          # hub + web en modo desarrollo
 npm run build
+npm start            # hub compilado, que sirve el dashboard
 npm test
+npm run typecheck
 npm run lint
 npm run format
+npm run verify:anki  # sincroniza con el Anki real y compara repasos por día (Anki abierto)
 ```
 
 Variables de entorno (con valores por defecto razonables): `HUB_PORT` (7300), `HUB_DB_PATH`,
-`GSM_DB_PATH`, `ANKICONNECT_URL`, `DAY_CUTOFF_HOUR` (4), `TZ_NAME` (America/Buenos_Aires).
+`GSM_DB_PATH`, `ANKICONNECT_URL`, `ANKI_DECKS`, `ANKI_REFOLD_DECKS`, `DAY_CUTOFF_HOUR` (4),
+`TZ_NAME` (America/Buenos_Aires), `SYNC_INTERVAL_MINUTES` (5), `LOG_LEVEL`. Ver `.env.example`.
 
 ## Convenciones
 
