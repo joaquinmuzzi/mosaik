@@ -79,6 +79,8 @@ export const videoRemovedEventSchema = z.object({
   id: eventId,
   source: z.literal("deuchan"),
   kind: z.literal("video_removed"),
+  // Deuchan sends it, like on every event; nothing depends on it here
+  language: language.optional(),
   day: dayString,
   at: epochMs,
   videoId: youtubeVideoId,

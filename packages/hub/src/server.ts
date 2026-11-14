@@ -19,6 +19,7 @@ import type { Config } from "./config.ts";
 import { listConnectorStates } from "./connectors/state.ts";
 import type { Database } from "./db/database.ts";
 import { schemaVersion } from "./db/migrate.ts";
+import { INGEST_BODY_LIMIT, ingestEvents } from "./ingest.ts";
 import type { Scheduler } from "./scheduler.ts";
 
 /** The dashboard built by Vite (`packages/web/dist`), both from `src/` and from `dist/`. */
@@ -124,6 +125,14 @@ export async function buildServer({
   });
 
   app.post("/api/sync", async () => ({ results: await scheduler.runAll() }));
+
+  app.post("/api/ingest/events", { bodyLimit: INGEST_BODY_LIMIT }, async (request, reply) => {
+    const result = ingestEvents(db, request.body, {
+      attribution: { refoldDecks: config.ankiRefoldDecks, timeZone: config.timeZone },
+      timeZone: config.timeZone,
+    });
+    return reply.code(result.status).send(result.body);
+  });
 
   app.post<{ Params: { source: string } }>("/api/sync/:source", async (request, reply) => {
     const { source } = request.params;
