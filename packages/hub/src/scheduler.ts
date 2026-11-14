@@ -25,7 +25,7 @@ export interface Scheduler {
   isRunning(source: string): boolean;
   /** Runs one connector now, or waits for the run already in progress. Never rejects. */
   run(source: string): Promise<SyncOutcome>;
-  /** Runs every connector, at the same time. Never rejects. */
+  /** Runs every connector, one after the other in the order they were registered. Never rejects. */
   runAll(): Promise<SyncOutcome[]>;
   /** Starts the rounds: one right away, then one every `intervalMs`. */
   start(): void;
@@ -80,7 +80,15 @@ export function createScheduler({ db, intervalMs, log, now = Date.now }: Schedul
     return promise;
   }
 
-  const runAll = () => Promise.all([...connectors.keys()].map(run));
+  // One after the other, in the order they were registered: a later source then sees what an earlier
+  // one just wrote (GSM attributes the notes Anki has just copied)
+  async function runAll(): Promise<SyncOutcome[]> {
+    const outcomes: SyncOutcome[] = [];
+    for (const source of connectors.keys()) {
+      outcomes.push(await run(source));
+    }
+    return outcomes;
+  }
 
   return {
     register(connector) {

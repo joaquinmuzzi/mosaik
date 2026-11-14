@@ -142,6 +142,24 @@ describe("createScheduler", () => {
     expect(scheduler.isRunning("anki")).toBe(false);
   });
 
+  it("runs the connectors one after the other, in the order they were registered", async () => {
+    const scheduler = createScheduler({ db, intervalMs: 60_000, log: silentLogger, now });
+    const events: string[] = [];
+    const slow = (source: string): Connector => ({
+      source,
+      async run() {
+        events.push(`${source} start`);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        events.push(`${source} end`);
+        return {};
+      },
+    });
+    scheduler.register(slow("anki"));
+    scheduler.register(slow("gsm"));
+    await scheduler.runAll();
+    expect(events).toEqual(["anki start", "anki end", "gsm start", "gsm end"]);
+  });
+
   it("answers an unknown source without throwing", async () => {
     const scheduler = createScheduler({ db, intervalMs: 60_000, log: silentLogger, now });
     expect(await scheduler.run("nope")).toEqual({ source: "nope", ok: false, error: "unknown source" });
