@@ -35,6 +35,28 @@
   const dateTime = new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" });
   const when = (ms: number | null) => (ms === null ? "nunca" : dateTime.format(ms));
 
+  /** What each connector reports, in words. Keys not listed here are not shown. */
+  const SUMMARY_LABELS: Record<string, string> = {
+    notes: "notas",
+    reviews: "repasos",
+    reviewsNew: "repasos nuevos",
+    unknownOrigin: "sin origen",
+  };
+  const number = new Intl.NumberFormat("es-AR");
+
+  function summaryText(summary: Record<string, unknown> | null): string {
+    if (!summary) return "";
+    return Object.entries(SUMMARY_LABELS)
+      .filter(([key]) => typeof summary[key] === "number")
+      .map(([key, label]) => `${number.format(summary[key] as number)} ${label}`)
+      .join(" · ");
+  }
+
+  function warningsOf(summary: Record<string, unknown> | null): string[] {
+    const warnings = summary?.warnings;
+    return Array.isArray(warnings) ? warnings.filter((item): item is string => typeof item === "string") : [];
+  }
+
   onMount(() => {
     void refresh();
     const timer = setInterval(() => void refresh(), REFRESH_MS);
@@ -84,7 +106,15 @@
         <tbody>
           {#each sources as source (source.source)}
             <tr>
-              <td>{source.source}</td>
+              <td>
+                <span class="source-name">{source.source}</span>
+                {#if summaryText(source.lastSummary)}
+                  <span class="summary">{summaryText(source.lastSummary)}</span>
+                {/if}
+                {#each warningsOf(source.lastSummary) as warning (warning)}
+                  <span class="warning">{warning}</span>
+                {/each}
+              </td>
               <td>{when(source.lastOkAt)}</td>
               <td>
                 {#if source.running || syncing[source.source]}
@@ -198,6 +228,21 @@
 
   .error {
     color: var(--danger);
+  }
+
+  .source-name {
+    font-weight: 500;
+  }
+
+  .summary,
+  .warning {
+    display: block;
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+
+  .warning {
+    color: var(--warning);
   }
 
   button {

@@ -6,6 +6,7 @@
   --muted: #6b6b66;
   --ok: #2f9e44;
   --danger: #c92a2a;
+  --warning: #b35c00;
   color-scheme: light dark;
   font-family:
     system-ui,
@@ -25,6 +26,7 @@
     --muted: #a0a09a;
     --ok: #51cf66;
     --danger: #ff6b6b;
+    --warning: #ffa94d;
   }
 }
 
