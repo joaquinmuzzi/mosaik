@@ -1,0 +1,243 @@
+{
+  "$comment": "Synthetic collection. Shapes captured from the user's AnkiConnect on 2026-11-14; every value is invented.",
+  "decks": {
+    "Default": 1,
+    "German Mining": 1786000000001,
+    "Refold Alemán-mil": 1786000000002,
+    "Other": 1786000000003
+  },
+  "notes": [
+    {
+      "noteId": 1787000000000,
+      "profile": "User 1",
+      "tags": ["yomitan"],
+      "fields": {
+        "Expression": { "value": "Brücke", "order": 0 },
+        "Sentence": { "value": "Die <b>Brücke</b> ist sehr alt.", "order": 1 },
+        "MiscInfo": { "value": "(3) Easy German 412 - Im Supermarkt - YouTube", "order": 2 }
+      },
+      "modelName": "Kiku",
+      "mod": 1787000100,
+      "cards": [1787000000001],
+      "deck": "German Mining"
+    },
+    {
+      "noteId": 1788000000000,
+      "profile": "User 1",
+      "tags": ["Game::BeispielSpiel", "GSM", "yomitan"],
+      "fields": {
+        "Expression": { "value": "Fenster", "order": 0 },
+        "Sentence": { "value": "Mach das Fenster zu.", "order": 1 },
+        "MiscInfo": { "value": "Beispiel Spiel", "order": 2 }
+      },
+      "modelName": "Kiku Deutsch",
+      "mod": 1788000100,
+      "cards": [1788000000001],
+      "deck": "German Mining"
+    },
+    {
+      "noteId": 1789000000000,
+      "profile": "User 1",
+      "tags": ["yomitan"],
+      "fields": {
+        "Expression": { "value": "aufgeben", "order": 0 },
+        "Sentence": { "value": "Du darfst nicht aufgeben.", "order": 1 },
+        "MiscInfo": {
+          "value": "<span data-group-id=\"1\">Let&#x27;s Play Beispiel #002 [Deutsch] - Der Anfang</span>",
+          "order": 2
+        }
+      },
+      "modelName": "Kiku",
+      "mod": 1789000100,
+      "cards": [1789000000001],
+      "deck": "German Mining"
+    },
+    {
+      "noteId": 1660000000560,
+      "profile": "User 1",
+      "tags": [],
+      "fields": {
+        "Índice de ordenación": { "value": "1", "order": 0 },
+        "Palabra": { "value": "haben", "order": 1 },
+        "Ejemplo de frase": { "value": "Ich habe Zeit.", "order": 2 }
+      },
+      "modelName": "Alemán-mil",
+      "mod": 1660000000,
+      "cards": [1660000000708],
+      "deck": "Refold Alemán-mil"
+    },
+    {
+      "noteId": 1660000000561,
+      "profile": "User 1",
+      "tags": [],
+      "fields": {
+        "Índice de ordenación": { "value": "2", "order": 0 },
+        "Palabra": { "value": "<b>sein</b>&nbsp;", "order": 1 },
+        "Ejemplo de frase": { "value": "Das kann sein.", "order": 2 }
+      },
+      "modelName": "Alemán-mil",
+      "mod": 1660000000,
+      "cards": [1660000000709],
+      "deck": "Refold Alemán-mil"
+    },
+    {
+      "noteId": 1786500000000,
+      "profile": "User 1",
+      "tags": [],
+      "fields": {
+        "Expression": { "value": "Fremd", "order": 0 },
+        "MiscInfo": { "value": "", "order": 1 }
+      },
+      "modelName": "Kiku",
+      "mod": 1786500100,
+      "cards": [1786500000001],
+      "deck": "Other"
+    }
+  ],
+  "cards": [
+    {
+      "cardId": 1787000000001,
+      "note": 1787000000000,
+      "deckName": "German Mining",
+      "modelName": "Kiku",
+      "ord": 0,
+      "type": 2,
+      "queue": 2,
+      "due": 120,
+      "interval": 30,
+      "factor": 2500,
+      "reps": 4,
+      "lapses": 0,
+      "left": 0,
+      "mod": 1794300000,
+      "flags": 0,
+      "fieldOrder": 0,
+      "question": "<style>.card{}</style><div>Brücke</div>",
+      "answer": "<style>.card{}</style><div>Brücke</div><hr id=answer>bridge",
+      "css": ".card{}",
+      "nextReviews": ["<10m", "1mo", "2mo", "3mo"]
+    },
+    {
+      "cardId": 1788000000001,
+      "note": 1788000000000,
+      "deckName": "German Mining",
+      "modelName": "Kiku Deutsch",
+      "ord": 0,
+      "type": 1,
+      "queue": 1,
+      "due": 1794400000,
+      "interval": -600,
+      "factor": 2500,
+      "reps": 2,
+      "lapses": 0,
+      "left": 1001,
+      "mod": 1794350000,
+      "flags": 0,
+      "fieldOrder": 0,
+      "question": "<div>Fenster</div>",
+      "answer": "<div>Fenster</div>",
+      "css": ".card{}",
+      "nextReviews": ["<1m", "<10m", "1d", "4d"]
+    },
+    {
+      "cardId": 1789000000001,
+      "note": 1789000000000,
+      "deckName": "German Mining",
+      "modelName": "Kiku",
+      "ord": 0,
+      "type": 0,
+      "queue": 0,
+      "due": 5,
+      "interval": 0,
+      "factor": 0,
+      "reps": 0,
+      "lapses": 0,
+      "left": 0,
+      "mod": 1789000100,
+      "flags": 0,
+      "fieldOrder": 0,
+      "question": "<div>aufgeben</div>",
+      "answer": "<div>aufgeben</div>",
+      "css": ".card{}",
+      "nextReviews": ["<1m", "<10m", "1d", "4d"]
+    },
+    {
+      "cardId": 1660000000708,
+      "note": 1660000000560,
+      "deckName": "Refold Alemán-mil",
+      "modelName": "Alemán-mil",
+      "ord": 0,
+      "type": 2,
+      "queue": 2,
+      "due": 137,
+      "interval": 73,
+      "factor": 2500,
+      "reps": 7,
+      "lapses": 0,
+      "left": 0,
+      "mod": 1794200000,
+      "flags": 0,
+      "fieldOrder": 0,
+      "question": "<div>haben</div>",
+      "answer": "<div>haben</div>",
+      "css": ".card{}",
+      "nextReviews": ["<10m", "3mo", "4mo", "6mo"]
+    },
+    {
+      "cardId": 1660000000709,
+      "note": 1660000000561,
+      "deckName": "Refold Alemán-mil",
+      "modelName": "Alemán-mil",
+      "ord": 0,
+      "type": 2,
+      "queue": 2,
+      "due": 140,
+      "interval": 12,
+      "factor": 2300,
+      "reps": 5,
+      "lapses": 1,
+      "left": 0,
+      "mod": 1794250000,
+      "flags": 0,
+      "fieldOrder": 0,
+      "question": "<div>sein</div>",
+      "answer": "<div>sein</div>",
+      "css": ".card{}",
+      "nextReviews": ["<10m", "15d", "20d", "1mo"]
+    },
+    {
+      "cardId": 1786500000001,
+      "note": 1786500000000,
+      "deckName": "Other",
+      "modelName": "Kiku",
+      "ord": 0,
+      "type": 2,
+      "queue": 2,
+      "due": 100,
+      "interval": 10,
+      "factor": 2500,
+      "reps": 3,
+      "lapses": 0,
+      "left": 0,
+      "mod": 1794000000,
+      "flags": 0,
+      "fieldOrder": 0,
+      "question": "<div>Fremd</div>",
+      "answer": "<div>Fremd</div>",
+      "css": ".card{}",
+      "nextReviews": ["<10m", "15d", "20d", "1mo"]
+    }
+  ],
+  "$reviews": "[id, cid, usn, ease, ivl, lastIvl, factor, time, type]; ids are ms. Buenos Aires is UTC-3.",
+  "reviews": [
+    [1794326400000, 1660000000708, 50, 3, 30, 12, 2500, 6000, 1],
+    [1794330000000, 1660000000709, 50, 1, -600, 20, 2300, 9000, 1],
+    [1794330600000, 1660000000709, 50, 3, 1, -600, 2300, 4000, 2],
+    [1794331200000, 1787000000001, 50, 3, 30, 10, 2500, 5000, 1],
+    [1794378600000, 1788000000001, 50, 3, -600, -60, 2500, 7000, 0],
+    [1794382200000, 1660000000709, 50, 3, 12, 1, 2300, 3000, 1],
+    [1794385800000, 1660000000708, 51, 0, 73, 30, 2500, 0, 5],
+    [1794386000000, 1786500000001, 51, 3, 10, 4, 2500, 3000, 1],
+    [1794390000000, 1999999999999, 51, 3, 5, 2, 2500, 3000, 1]
+  ]
+}
