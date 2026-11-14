@@ -8,13 +8,14 @@ import { locateGsm } from "./gsm/source.ts";
 import type { Connector } from "./types.ts";
 
 export function createConnectors(db: Database, config: Config): Connector[] {
-  const attribution = { refoldDecks: config.ankiRefoldDecks };
+  const attribution = { refoldDecks: config.ankiRefoldDecks, timeZone: config.timeZone };
   return [
     createAnkiConnector({
       db,
       client: createAnkiClient({ url: config.ankiConnectUrl }),
       decks: config.ankiDecks,
       refoldDecks: config.ankiRefoldDecks,
+      timeZone: config.timeZone,
     }),
     createGsmConnector({
       db,

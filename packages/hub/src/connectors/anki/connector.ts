@@ -30,6 +30,8 @@ export interface AnkiConnectorOptions {
   decks: readonly string[];
   /** Premade decks whose cards count as 'refold-1k'. */
   refoldDecks: readonly string[];
+  /** The user's time zone, to match cards with the videos seen the day they were mined. */
+  timeZone?: string;
 }
 
 export interface AnkiCursor {
@@ -74,7 +76,13 @@ function within(deck: string, parents: Iterable<string>): boolean {
   return false;
 }
 
-export function createAnkiConnector({ db, client, decks, refoldDecks }: AnkiConnectorOptions): Connector {
+export function createAnkiConnector({
+  db,
+  client,
+  decks,
+  refoldDecks,
+  timeZone,
+}: AnkiConnectorOptions): Connector {
   return {
     source: ANKI_SOURCE,
 
@@ -237,7 +245,7 @@ export function createAnkiConnector({ db, client, decks, refoldDecks }: AnkiConn
         }
 
         return {
-          cards: rebuildCards(db, { refoldDecks }),
+          cards: rebuildCards(db, timeZone === undefined ? { refoldDecks } : { refoldDecks, timeZone }),
           reviews: rebuildReviews(db),
         };
       });

@@ -31,7 +31,13 @@ async function main(): Promise<number> {
       log: { info() {}, warn: (_object, message) => console.warn(`warning: ${message}`), error() {} },
     });
     scheduler.register(
-      createAnkiConnector({ db, client, decks: config.ankiDecks, refoldDecks: config.ankiRefoldDecks }),
+      createAnkiConnector({
+        db,
+        client,
+        decks: config.ankiDecks,
+        refoldDecks: config.ankiRefoldDecks,
+        timeZone: config.timeZone,
+      }),
     );
     const outcome = await scheduler.run(ANKI_SOURCE);
     if (!outcome.ok) {

@@ -46,7 +46,7 @@ async function main(): Promise<number> {
       createGsmConnector({
         db,
         locate: () => location,
-        attribution: { refoldDecks: config.ankiRefoldDecks },
+        attribution: { refoldDecks: config.ankiRefoldDecks, timeZone: config.timeZone },
         timeZone: config.timeZone,
       }),
     );
