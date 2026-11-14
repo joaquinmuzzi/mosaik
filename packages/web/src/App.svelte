@@ -55,6 +55,9 @@
     sessions: (value) => `${number.format(value)} sesiones`,
     readingSeconds: (value) => `${duration(value)} de lectura`,
     cardsFromGsm: (value) => `${number.format(value)} tarjetas minadas`,
+    videos: (value) => `${number.format(value)} videos`,
+    watchSeconds: (value) => `${duration(value)} de video`,
+    days: (value) => `${number.format(value)} días`,
   };
 
   function summaryText(summary: Record<string, unknown> | null): string {
@@ -139,13 +142,18 @@
                 {/if}
               </td>
               <td>
-                <button
-                  type="button"
-                  disabled={!source.registered || source.running || syncing[source.source]}
-                  onclick={() => sync(source.source)}
-                >
-                  Sincronizar
-                </button>
+                {#if source.registered}
+                  <button
+                    type="button"
+                    disabled={source.running || syncing[source.source]}
+                    onclick={() => sync(source.source)}
+                  >
+                    Sincronizar
+                  </button>
+                {:else}
+                  <!-- A source that pushes (Deuchan): the hub does not fetch it -->
+                  <span class="summary">la envía la extensión</span>
+                {/if}
               </td>
             </tr>
           {/each}
