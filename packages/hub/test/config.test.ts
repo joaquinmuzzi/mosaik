@@ -9,7 +9,7 @@ describe("loadConfig", () => {
       host: "127.0.0.1",
       port: 7300,
       dbPath: join("C:\\Local", "Mosaik", "mosaik.db"),
-      gsmDbPath: join("C:\\Roaming", "GameSentenceMiner", "gsm.db"),
+      gsmDbPath: null,
       ankiConnectUrl: "http://127.0.0.1:8765",
       ankiDecks: ["German Mining", "Refold Alemán-mil"],
       ankiRefoldDecks: ["Refold Alemán-mil"],

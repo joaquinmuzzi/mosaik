@@ -12,7 +12,8 @@ export interface Config {
   host: "127.0.0.1";
   port: number;
   dbPath: string;
-  gsmDbPath: string;
+  /** GSM_DB_PATH, or `null` to find GameSentenceMiner's database where GSM keeps it. */
+  gsmDbPath: string | null;
   ankiConnectUrl: string;
   /** Decks the Anki connector reads (subdecks included). */
   ankiDecks: string[];
@@ -34,18 +35,6 @@ export function defaultDbPath(env: Env, platform: NodeJS.Platform = process.plat
   }
   const base = env.XDG_DATA_HOME ?? join(homedir(), ".local", "share");
   return join(base, "mosaik", "mosaik.db");
-}
-
-/**
- * Where GameSentenceMiner keeps its database when GSM_DB_PATH is not set. GSM can be told to use
- * another folder (~/.config/GameSentenceMiner/data_dir.json); the GSM connector looks there too.
- */
-export function defaultGsmDbPath(env: Env, platform: NodeJS.Platform = process.platform): string {
-  if (platform === "win32") {
-    const base = env.APPDATA ?? join(homedir(), "AppData", "Roaming");
-    return join(base, "GameSentenceMiner", "gsm.db");
-  }
-  return join(homedir(), ".config", "GameSentenceMiner", "gsm.db");
 }
 
 const DEFAULT_ANKI_DECKS = ["German Mining", "Refold Alemán-mil"];
@@ -95,7 +84,7 @@ export function loadConfig(env: Env = process.env, platform: NodeJS.Platform = p
     host: "127.0.0.1",
     port: values.HUB_PORT ?? 7300,
     dbPath: values.HUB_DB_PATH ?? defaultDbPath(env, platform),
-    gsmDbPath: values.GSM_DB_PATH ?? defaultGsmDbPath(env, platform),
+    gsmDbPath: values.GSM_DB_PATH ?? null,
     ankiConnectUrl: values.ANKICONNECT_URL ?? "http://127.0.0.1:8765",
     ankiDecks: values.ANKI_DECKS ?? DEFAULT_ANKI_DECKS,
     ankiRefoldDecks: values.ANKI_REFOLD_DECKS ?? DEFAULT_ANKI_REFOLD_DECKS,

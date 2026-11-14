@@ -19,7 +19,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     host: "127.0.0.1",
     port: 7300,
     dbPath: ":memory:",
-    gsmDbPath: "/nonexistent/gsm.db",
+    gsmDbPath: null,
     ankiConnectUrl: "http://127.0.0.1:8765",
     ankiDecks: ["German Mining", "Refold Alemán-mil"],
     ankiRefoldDecks: ["Refold Alemán-mil"],
