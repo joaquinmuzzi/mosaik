@@ -137,3 +137,86 @@ export interface AnkiStatsResponse {
   origins: OriginStats[];
   weeks: WeekPoint[];
 }
+
+// Contents and sentence search (phase 5).
+
+export interface ContentSummary {
+  id: string;
+  source: string;
+  kind: string;
+  title: string | null;
+  /** Active time: GSM's reading time in the target language, or what Deuchan credited the video. */
+  seconds: number;
+  sessions: number;
+  /** Characters read, as GSM counts them (GSM only). */
+  characters: number | null;
+  cardsMined: number;
+  firstDay: string | null;
+  lastDay: string | null;
+}
+
+export interface ContentsResponse {
+  contents: ContentSummary[];
+}
+
+export interface ContentSession {
+  id: string;
+  language: string;
+  start: number;
+  end: number;
+  seconds: number;
+  characters: number | null;
+  lines: number | null;
+}
+
+export interface ContentLine {
+  id: string;
+  ts: number;
+  text: string;
+  /** Words of the cards mined from this line. */
+  mined: string[];
+}
+
+export interface ContentCard {
+  noteId: number;
+  word: string | null;
+  created: number;
+  /** The sentence it was mined from, when the source knows it (GSM). */
+  line: string | null;
+}
+
+export interface ContentDetailResponse {
+  content: ContentSummary & {
+    externalId: string | null;
+    url: string | null;
+    totalUnits: number | null;
+    unit: string | null;
+  };
+  /** Characters per hour, only for reading (GSM), as GSM counts characters. */
+  charactersPerHour: number | null;
+  /** Share of the content read, only when the source knows its length. */
+  completion: number | null;
+  days: { day: string; seconds: number }[];
+  sessions: ContentSession[];
+  cards: ContentCard[];
+  /** The newest lines read (up to 200). */
+  lines: ContentLine[];
+}
+
+export interface SearchHit {
+  id: string;
+  ts: number;
+  text: string;
+  contentId: string | null;
+  contentTitle: string | null;
+  /** The Mosaik day the line was read on. */
+  day: string;
+  mined: string[];
+}
+
+export interface SearchResponse {
+  query: string;
+  hits: SearchHit[];
+  /** True when there were more hits than returned. */
+  more: boolean;
+}

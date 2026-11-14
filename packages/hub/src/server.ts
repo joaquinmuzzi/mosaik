@@ -20,6 +20,7 @@ import type {
   SourceStatus,
   SourcesResponse,
 } from "@mosaik/shared";
+import { contentDetail, listContents, searchLines } from "./api/contents.ts";
 import { ankiStats, dayDetail, isDay, overview } from "./api/dashboard.ts";
 import Fastify, { type FastifyInstance, type FastifyServerOptions, LogController } from "fastify";
 import type { Config } from "./config.ts";
@@ -150,6 +151,24 @@ export async function buildServer({
   });
 
   app.get("/api/anki", async (): Promise<AnkiStatsResponse> => ankiStats(db, dashboard));
+
+  app.get("/api/contents", async () => listContents(db, dashboard));
+
+  app.get<{ Params: { id: string } }>("/api/contents/:id", async (request, reply) => {
+    const detail = contentDetail(db, dashboard, request.params.id);
+    return detail ?? reply.code(404).send({ error: "not_found", message: "No such content" });
+  });
+
+  app.get<{ Querystring: { q?: string; limit?: string; content?: string } }>(
+    "/api/search",
+    async (request) => {
+      const limit = Math.min(Math.max(Number(request.query.limit) || 50, 1), 500);
+      return searchLines(db, dashboard, request.query.q ?? "", {
+        limit,
+        ...(request.query.content ? { contentId: request.query.content } : {}),
+      });
+    },
+  );
 
   app.post("/api/sync", async () => ({ results: await scheduler.runAll() }));
 
