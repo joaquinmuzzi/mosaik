@@ -20,7 +20,11 @@ Todo corre en esta computadora: el servidor escucha solo en `127.0.0.1` y ningú
   (da exactamente lo mismo). Las líneas quedan indexadas para el buscador de oraciones, y las tarjetas
   minadas desde GSM quedan atribuidas a su juego y a su línea.
 
-Sigue Deuchan (fase 3).
+- **Fase 3 (Deuchan)**: el hub recibe los eventos de la extensión en `POST /api/ingest/events`: videos,
+  sesiones y el total de cada día tal como lo muestra Deuchan. Las tarjetas minadas mientras se miraba un
+  video quedan atribuidas a ese video. En Deuchan se prende con "Send to Mosaik", en su dashboard.
+
+Sigue el dashboard v0 (fase 4).
 
 ## Requisitos
 
@@ -89,6 +93,7 @@ Todas son opcionales:
 | `GET /api/sources` | Estado de cada conector: última corrida, último OK, último error, resumen |
 | `POST /api/sync` | Corre todos los conectores ahora |
 | `POST /api/sync/:source` | Corre uno; `404` si no existe |
+| `POST /api/ingest/events` | Recibe eventos de fuentes que empujan (Deuchan); ver [`docs/ingest-api.md`](docs/ingest-api.md) |
 
 El hub rechaza pedidos cuyo `Host` no sea esta computadora (contra DNS rebinding) y los cambios
 (`POST`) que vengan de otras páginas web. No manda cabeceras CORS.

@@ -25,7 +25,7 @@ Nombre de trabajo del proyecto: `Mosaik`.
 |---|---|---|
 | **Anki** | AnkiConnect, `http://127.0.0.1:8765`, solo con Anki abierto | Mazos `German Mining` (note types `Kiku` y `Kiku Deutsch`: palabra en `Expression`, origen en `MiscInfo`) y `Refold Alemán-mil`. Notas (`notesInfo`), estado de tarjetas (`cardsInfo`), repasos incrementales (`cardReviews(deck, startID)`). Ojo: `cardReviews` crea el mazo si no existe. |
 | **GameSentenceMiner (GSM)** | SQLite `%APPDATA%\GameSentenceMiner\gsm.db`, **solo lectura** (ojo: `?mode=ro` igual crea `-wal`/`-shm`; ver `connectors/gsm/source.ts`) | `game_lines` (una fila por línea leída, con `timestamp`, `game_id`, `note_ids`, `last_modified`), `games`, `game_daily_rollup`, `stats_reading_breaks`. El tiempo se calcula con el algoritmo de GSM portado tal cual. |
-| **Deuchan** (extensión de Chrome del usuario, repo `joaquinmuzzi/Deuchan`) | Push: la extensión manda intervalos al hub por HTTP | Intervalos `{ id, from, to, seconds, videoId, title }`. Hoy solo guarda totales por día en `chrome.storage.local`; hay que agregarle el envío. |
+| **Deuchan** (extensión de Chrome del usuario, repo `joaquinmuzzi/Deuchan`) | Push: la extensión manda eventos a `POST /api/ingest/events` (opción "Send to Mosaik", apagada por defecto) | `watch_interval`, `day_total` (lo que muestra su dashboard ese día) y `video_removed`. Contrato en `docs/ingest-api.md` y `packages/shared/src/ingest.ts`. |
 
 Futuro: lectura (novelas, lectores web como ttu).
 

@@ -4,8 +4,10 @@ Contrato entre el hub de Mosaik y las fuentes que **empujan** datos (Deuchan, y 
 La fuente de verdad es el esquema zod de [`packages/shared/src/ingest.ts`](../packages/shared/src/ingest.ts);
 este documento lo explica. Si cambian, cambian juntos.
 
-> **Estado:** el esquema existe desde la fase 0. El endpoint `POST /api/ingest/events` se implementa en la
-> fase 3. Hasta entonces el hub contesta `404` y el cliente tiene que esperar (ver "Errores").
+> **Estado:** implementado en la fase 3 (`packages/hub/src/ingest.ts`). Deuchan lo usa desde
+> [joaquinmuzzi/Deuchan#28](https://github.com/joaquinmuzzi/Deuchan/pull/28); su validador del contrato
+> (`tests/mosaik-contract.js` en ese repo) es igual o más estricto que el de Mosaik en cada regla.
+> El cuerpo puede pesar hasta **16 MB** (un backfill de 200 días con 200 videos cada uno pasa de 1 MB).
 
 ## Descubrir el hub
 
@@ -71,7 +73,9 @@ hueco entre ellos es menor a 10 minutos.
 
 Por cada `day` el hub se queda con la foto de `at` más nuevo. Se manda en el backfill del historial y cada
 vez que un día cambia (minutos nuevos o una corrección). Para el total diario manda `day_total`; los
-intervalos dan el detalle (a qué hora, qué video).
+intervalos dan el detalle (a qué hora, qué video). El total **nunca** se deriva de `videos`: Deuchan pone ahí
+solo los videos de esta computadora, mientras que `seconds` incluye las otras computadoras sincronizadas. Si
+dos computadoras mandan fotos del mismo día, las dos traen el total ya combinado y gana la más nueva.
 
 ### `video_removed`: el usuario sacó un video de un día
 
@@ -84,7 +88,16 @@ intervalos dan el detalle (a qué hora, qué video).
 | `videoId` | string | |
 
 El tiempo de ese video en ese día deja de contar en las sesiones del hub. La fuente manda además una
-`day_total` nueva de ese día.
+`day_total` nueva de ese día. Puede traer `language` (opcional; Deuchan lo manda como en todos los eventos).
+
+## Qué hace el hub con los eventos
+
+- Los guarda tal cual en `raw_events` y reconstruye las filas de Deuchan del modelo común.
+- Cada video es un contenido `yt:<videoId>`, con el título más reciente que se vio.
+- Los intervalos del mismo video separados por menos de **10 minutos** forman una sesión.
+- El total de cada día va a `day_totals`, desde la foto más nueva.
+- Las tarjetas cuyo `MiscInfo` (limpio) coincide con el título de un video que Deuchan vio ese día o el
+  anterior quedan con origen `youtube` y ese video (regla 3 de `docs/plan.md`).
 
 ## Respuesta
 

@@ -139,6 +139,11 @@ del progreso y en qué contexto apareció cada palabra.
   - Además de intervalos, manda `day_total` (lo que muestra su dashboard ese día, con correcciones) cuando
     cambia un día reciente, y `video_removed` cuando el usuario saca un video de un día.
   - El prompt para el agente que lo implementa está en [`docs/prompts/deuchan-mosaik.md`](prompts/deuchan-mosaik.md).
+  - **Hecho (2026-11-14):** [joaquinmuzzi/Deuchan#28](https://github.com/joaquinmuzzi/Deuchan/pull/28),
+    mergeado. Opción "Send to Mosaik" apagada por defecto; envía cada minuto, en lotes de hasta 200 (parte el
+    lote ante un 413), timeout 5 s, cola de hasta 5000 eventos. `day_total` va con segundos enteros (lo que
+    muestra el dashboard) cada vez que un día cambia, y como backfill al prender la opción. Chrome 156 no pide
+    nada por Local Network Access. No hay historial de intervalos anterior: Deuchan no lo guardaba.
 
 ### 1.4 asbplayer y Yomitan
 
@@ -238,7 +243,12 @@ día es la suma de `lines.seconds` de las líneas de ese día**, con el corte de
 cruza el corte reparte su tiempo entre los dos días sin estimar nada. Solo se reconstruye cuando cambió algo
 (líneas, juegos, pausas o la configuración de GSM).
 
-Reglas de atribución del origen de una tarjeta, en orden (implementadas: 1, 1b, 4 y 5):
+La fase 3 creó `raw_events` (cada evento empujado, tal cual) y `day_totals` (por fuente y día, la foto más
+nueva) (`0004_ingest.sql`). Los videos de Deuchan son `contents` `yt:<videoId>` y sus sesiones juntan los
+intervalos del mismo video separados por menos de 10 minutos. El tiempo diario de Deuchan es el de
+`day_totals` (con correcciones, del día de Deuchan, que corta a medianoche); las sesiones dan el detalle.
+
+Reglas de atribución del origen de una tarjeta, en orden (todas implementadas):
 1. Su `note_id` aparece en `note_ids` de una línea de GSM → `gsm`, con `content_id` y `line_id`.
    1b. Si no, tiene el tag `GSM` (lo pone GSM al minar) → `gsm`; `content_id` del juego cuyo título coincide con
    `source_title`, si hay uno (las tarjetas de Katawa Shoujo no tienen líneas en el `gsm.db` actual).
@@ -333,6 +343,12 @@ Cada fase termina con tests en verde y sus criterios cumplidos.
   extensión (apagada por defecto), tests.
 - *Criterio:* tests de la API; con el hub apagado los eventos esperan y se mandan al volver; los totales por día
   coinciden con el dashboard de Deuchan.
+- *Resultado (2026-11-14):* `POST /api/ingest/events` valida evento por evento, ignora ids repetidos, acepta hasta
+  16 MB y solo pedidos de extensiones, programas o páginas de esta computadora. Acepta el lote real que mandó
+  Deuchan desde Chrome 156. Lo de "los eventos esperan con el hub apagado" lo cubre la cola de Deuchan (tests en
+  su repo). Los totales por día son exactamente los `seconds` de la foto más nueva, que es lo que muestra el
+  dashboard de Deuchan. Las tarjetas suman las reglas 2 (campo `URL`) y 3 (título del video del día). Falta
+  verlo con datos reales: la opción se prende desde el dashboard de Deuchan, con la extensión actualizada.
 
 **Fase 4 — Dashboard v0**
 - Páginas Inicio, Anki (retención por origen) y Fuentes, con datos reales vía la API.
