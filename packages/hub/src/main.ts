@@ -4,6 +4,7 @@
  */
 import type { FastifyServerOptions } from "fastify";
 import { ConfigError, loadConfig } from "./config.ts";
+import { createConnectors } from "./connectors/index.ts";
 import type { Logger } from "./connectors/types.ts";
 import { openDatabase } from "./db/database.ts";
 import { applyMigrations, schemaVersion } from "./db/migrate.ts";
@@ -37,7 +38,9 @@ async function main(): Promise<void> {
       error: (object, message) => schedulerLog.error(object, message),
     },
   });
-  // Connectors are registered here, one per source, as they are written (Anki in phase 1, GSM in phase 2)
+  for (const connector of createConnectors(db, config)) {
+    scheduler.register(connector);
+  }
 
   const app = await buildServer({ config, db, scheduler, logger });
   schedulerLog = app.log;

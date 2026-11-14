@@ -11,6 +11,8 @@ describe("loadConfig", () => {
       dbPath: join("C:\\Local", "Mosaik", "mosaik.db"),
       gsmDbPath: join("C:\\Roaming", "GameSentenceMiner", "gsm.db"),
       ankiConnectUrl: "http://127.0.0.1:8765",
+      ankiDecks: ["German Mining", "Refold Alemán-mil"],
+      ankiRefoldDecks: ["Refold Alemán-mil"],
       dayCutoffHour: 4,
       timeZone: "America/Buenos_Aires",
       syncIntervalMinutes: 5,
@@ -39,6 +41,13 @@ describe("loadConfig", () => {
       syncIntervalMinutes: 15,
       logLevel: "debug",
     });
+  });
+
+  it("reads the deck lists, trimming each name", () => {
+    const config = loadConfig({ ANKI_DECKS: " Mining , Core::Sub ,", ANKI_REFOLD_DECKS: "Core" });
+    expect(config.ankiDecks).toEqual(["Mining", "Core::Sub"]);
+    expect(config.ankiRefoldDecks).toEqual(["Core"]);
+    expect(() => loadConfig({ ANKI_DECKS: " , " })).toThrow(/ANKI_DECKS/);
   });
 
   it("treats empty variables as unset", () => {

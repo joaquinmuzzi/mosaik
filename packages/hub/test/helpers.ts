@@ -21,6 +21,8 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     dbPath: ":memory:",
     gsmDbPath: "/nonexistent/gsm.db",
     ankiConnectUrl: "http://127.0.0.1:8765",
+    ankiDecks: ["German Mining", "Refold Alemán-mil"],
+    ankiRefoldDecks: ["Refold Alemán-mil"],
     dayCutoffHour: 4,
     timeZone: "America/Buenos_Aires",
     syncIntervalMinutes: 5,

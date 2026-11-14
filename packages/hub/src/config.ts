@@ -14,6 +14,10 @@ export interface Config {
   dbPath: string;
   gsmDbPath: string;
   ankiConnectUrl: string;
+  /** Decks the Anki connector reads (subdecks included). */
+  ankiDecks: string[];
+  /** Of those, the premade decks with no immersion source: their cards count as `refold-1k`. */
+  ankiRefoldDecks: string[];
   dayCutoffHour: number;
   timeZone: string;
   syncIntervalMinutes: number;
@@ -44,6 +48,20 @@ export function defaultGsmDbPath(env: Env, platform: NodeJS.Platform = process.p
   return join(homedir(), ".config", "GameSentenceMiner", "gsm.db");
 }
 
+const DEFAULT_ANKI_DECKS = ["German Mining", "Refold Alemán-mil"];
+const DEFAULT_ANKI_REFOLD_DECKS = ["Refold Alemán-mil"];
+
+/** A comma-separated list, such as `German Mining, Refold Alemán-mil`. */
+const deckList = z
+  .string()
+  .transform((value) =>
+    value
+      .split(",")
+      .map((deck) => deck.trim())
+      .filter((deck) => deck.length > 0),
+  )
+  .refine((decks) => decks.length > 0, { message: "must name at least one deck" });
+
 /** An empty variable counts as unset, as in a `.env` line like `GSM_DB_PATH=`. */
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
@@ -53,14 +71,12 @@ const envSchema = z.object({
   HUB_DB_PATH: optional(z.string()),
   GSM_DB_PATH: optional(z.string()),
   ANKICONNECT_URL: optional(z.url({ protocol: /^https?$/ })),
+  ANKI_DECKS: optional(deckList),
+  ANKI_REFOLD_DECKS: optional(deckList),
   DAY_CUTOFF_HOUR: optional(z.coerce.number().int().min(0).max(23)),
   TZ_NAME: optional(z.string().refine(isValidTimeZone, { message: "unknown IANA time zone" })),
-  SYNC_INTERVAL_MINUTES: optional(
-    z.coerce
-      .number()
-      .min(1)
-      .max(24 * 60),
-  ),
+  // Up to a day
+  SYNC_INTERVAL_MINUTES: optional(z.coerce.number().min(1).max(1440)),
   LOG_LEVEL: optional(z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])),
 });
 
@@ -81,6 +97,8 @@ export function loadConfig(env: Env = process.env, platform: NodeJS.Platform = p
     dbPath: values.HUB_DB_PATH ?? defaultDbPath(env, platform),
     gsmDbPath: values.GSM_DB_PATH ?? defaultGsmDbPath(env, platform),
     ankiConnectUrl: values.ANKICONNECT_URL ?? "http://127.0.0.1:8765",
+    ankiDecks: values.ANKI_DECKS ?? DEFAULT_ANKI_DECKS,
+    ankiRefoldDecks: values.ANKI_REFOLD_DECKS ?? DEFAULT_ANKI_REFOLD_DECKS,
     dayCutoffHour: values.DAY_CUTOFF_HOUR ?? 4,
     timeZone: values.TZ_NAME ?? "America/Buenos_Aires",
     syncIntervalMinutes: values.SYNC_INTERVAL_MINUTES ?? 5,

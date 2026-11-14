@@ -19,6 +19,7 @@
     "dev:web": "npm run dev -w @mosaik/web",
     "build": "tsc -b && npm run build -w @mosaik/web",
     "start": "node --env-file-if-exists=.env packages/hub/dist/main.js",
+    "verify:anki": "node --conditions=source --env-file-if-exists=.env packages/hub/src/cli/verify-anki.ts",
     "typecheck": "tsc -b && tsc -p tsconfig.tests.json && npm run check -w @mosaik/web",
     "test": "vitest run",
     "test:watch": "vitest",
