@@ -353,6 +353,20 @@ Cada fase termina con tests en verde y sus criterios cumplidos.
 **Fase 4 — Dashboard v0**
 - Páginas Inicio, Anki (retención por origen) y Fuentes, con datos reales vía la API.
 - *Criterio:* el usuario puede ver un día cualquiera y entender de dónde sale cada número.
+- *Resultado (2026-11-14):* API `GET /api/overview`, `GET /api/days/:day` y `GET /api/anki`; dashboard con Inicio
+  (tarjetas de hoy, 7 días y racha; inmersión por día apilada por fuente y repasos por día, con tooltip y tabla;
+  una barra lleva al día), Día (cada fuente con su número, de dónde sale y su detalle: sesiones de GSM, videos de
+  Deuchan, repasos por tipo y tarjetas minadas con su origen), Anki (tarjetas, maduras y retención joven/madura por
+  origen; inmersión por semana y tarjetas que llegaron a maduras, en gráficos separados) y Fuentes. Decisiones:
+  - solo cuentan como inmersión las sesiones en el idioma objetivo (`TARGET_LANGUAGE`, `de`): la prueba en japonés
+    de GSM del 2026-08-26 no suma;
+  - el tiempo de Deuchan se muestra con el día de Deuchan (medianoche) sin recortar, para que coincida con su
+    dashboard; GSM y Anki usan el día de Mosaik (corte 4:00). La página del día lo explica, y las horas de
+    madrugada dicen de qué día calendario son;
+  - "maduras" = intervalo de 21 días o más; "llegaron a maduras" = primera vez que un repaso dejó la tarjeta en 21+;
+  - la retención con menos de 30 respuestas se muestra atenuada (hoy, todas las de origen minado).
+  Con los datos reales: el 13/11 muestra 29 min de Ace Attorney (00:02–03:59 del 14), 2 min de YouTube y las 7
+  tarjetas minadas, 4 atribuidas al Let's Play de Monkey Island #024 y 3 a Ace Attorney.
 
 **Fase 5 — Contenido y buscador**
 - Fichas por contenido y página Buscar sobre FTS5.

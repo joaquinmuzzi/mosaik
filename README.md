@@ -24,7 +24,10 @@ Todo corre en esta computadora: el servidor escucha solo en `127.0.0.1` y ningú
   sesiones y el total de cada día tal como lo muestra Deuchan. Las tarjetas minadas mientras se miraba un
   video quedan atribuidas a ese video. En Deuchan se prende con "Send to Mosaik", en su dashboard.
 
-Sigue el dashboard v0 (fase 4).
+- **Fase 4 (dashboard v0)**: Inicio (hoy, 7 días, racha, inmersión y repasos por día), la página de cada día
+  (cada número con su explicación y su detalle), Anki por origen de las tarjetas (retención y maduras) y Fuentes.
+
+Siguen las fichas por contenido y el buscador de oraciones (fase 5).
 
 ## Requisitos
 
@@ -83,6 +86,7 @@ Todas son opcionales:
 | `DAY_CUTOFF_HOUR` | `4` | Hora local en la que empieza un día (como Anki) |
 | `TZ_NAME` | `America/Buenos_Aires` | Zona horaria para calcular los días |
 | `SYNC_INTERVAL_MINUTES` | `5` | Cada cuánto corren los conectores |
+| `TARGET_LANGUAGE` | `de` | Idioma que se aprende: solo sus sesiones cuentan como inmersión |
 | `LOG_LEVEL` | `info` | `fatal` … `trace`, o `silent` |
 
 ## API (por ahora)
@@ -94,6 +98,9 @@ Todas son opcionales:
 | `POST /api/sync` | Corre todos los conectores ahora |
 | `POST /api/sync/:source` | Corre uno; `404` si no existe |
 | `POST /api/ingest/events` | Recibe eventos de fuentes que empujan (Deuchan); ver [`docs/ingest-api.md`](docs/ingest-api.md) |
+| `GET /api/overview?days=30` | Un resumen por día (juegos, YouTube, repasos, tarjetas minadas) y la racha |
+| `GET /api/days/:day` | El detalle de un día, fuente por fuente |
+| `GET /api/anki` | Tarjetas y retención por origen, y la evolución por semana |
 
 El hub rechaza pedidos cuyo `Host` no sea esta computadora (contra DNS rebinding) y los cambios
 (`POST`) que vengan de otras páginas web. No manda cabeceras CORS.

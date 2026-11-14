@@ -94,7 +94,7 @@ npm run verify:gsm   # sincroniza con el gsm.db real y compara con los totales d
 
 Variables de entorno (con valores por defecto razonables): `HUB_PORT` (7300), `HUB_DB_PATH`,
 `GSM_DB_PATH`, `ANKICONNECT_URL`, `ANKI_DECKS`, `ANKI_REFOLD_DECKS`, `DAY_CUTOFF_HOUR` (4),
-`TZ_NAME` (America/Buenos_Aires), `SYNC_INTERVAL_MINUTES` (5), `LOG_LEVEL`. Ver `.env.example`.
+`TZ_NAME` (America/Buenos_Aires), `SYNC_INTERVAL_MINUTES` (5), `TARGET_LANGUAGE` (de), `LOG_LEVEL`. Ver `.env.example`.
 
 ## Convenciones
 
