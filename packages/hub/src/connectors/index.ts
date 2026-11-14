@@ -3,15 +3,24 @@ import type { Config } from "../config.ts";
 import type { Database } from "../db/database.ts";
 import { createAnkiClient } from "./anki/client.ts";
 import { createAnkiConnector } from "./anki/connector.ts";
+import { createGsmConnector } from "./gsm/connector.ts";
+import { locateGsm } from "./gsm/source.ts";
 import type { Connector } from "./types.ts";
 
 export function createConnectors(db: Database, config: Config): Connector[] {
+  const attribution = { refoldDecks: config.ankiRefoldDecks };
   return [
     createAnkiConnector({
       db,
       client: createAnkiClient({ url: config.ankiConnectUrl }),
       decks: config.ankiDecks,
       refoldDecks: config.ankiRefoldDecks,
+    }),
+    createGsmConnector({
+      db,
+      locate: () => locateGsm(config.gsmDbPath),
+      attribution,
+      timeZone: config.timeZone,
     }),
   ];
 }

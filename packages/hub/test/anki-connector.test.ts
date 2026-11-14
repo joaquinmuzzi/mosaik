@@ -71,7 +71,7 @@ describe("the Anki connector", () => {
         // The card in "Other" and the deleted card are not read
         reviews: 7,
         reviewsNew: 7,
-        unknownOrigin: 3,
+        unknownOrigin: 2,
       },
     });
     expect([count("raw_anki_notes"), count("raw_anki_cards"), count("raw_anki_reviews")]).toEqual([5, 5, 7]);
@@ -258,10 +258,18 @@ describe("the Anki connector", () => {
 describe("attributeOrigin", () => {
   it("gives premade decks and their subdecks the refold-1k origin, and the rest unknown", () => {
     const options = { refoldDecks: [REFOLD] };
-    expect(attributeOrigin({ deck: REFOLD }, options).origin).toBe("refold-1k");
-    expect(attributeOrigin({ deck: `${REFOLD}::Teil 1` }, options).origin).toBe("refold-1k");
-    expect(attributeOrigin({ deck: `${REFOLD} 2` }, options).origin).toBe("unknown");
-    expect(attributeOrigin({ deck: MINING }, options).origin).toBe("unknown");
+    expect(attributeOrigin({ noteId: 1, tags: [], sourceTitle: null, deck: REFOLD }, options).origin).toBe(
+      "refold-1k",
+    );
+    expect(
+      attributeOrigin({ noteId: 1, tags: [], sourceTitle: null, deck: `${REFOLD}::Teil 1` }, options).origin,
+    ).toBe("refold-1k");
+    expect(
+      attributeOrigin({ noteId: 1, tags: [], sourceTitle: null, deck: `${REFOLD} 2` }, options).origin,
+    ).toBe("unknown");
+    expect(attributeOrigin({ noteId: 1, tags: [], sourceTitle: null, deck: MINING }, options).origin).toBe(
+      "unknown",
+    );
   });
 });
 
