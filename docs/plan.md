@@ -78,7 +78,16 @@ del progreso y en qué contexto apareció cada palabra.
   encolar cada intervalo nuevo como evento y mandarlo a `POST http://127.0.0.1:<HUB_PORT>/api/ingest/events`.
   Cola persistente en `storage` (reintento con `chrome.alarms` si el hub está apagado), `id` único por
   evento para que el hub deduplique. Una acción de "backfill" que manda `log` y `videos` históricos.
-  Agregar `http://127.0.0.1/*` a `host_permissions`. Configurable y apagado por defecto.
+  Configurable y apagado por defecto. El contrato completo está en [`docs/ingest-api.md`](ingest-api.md).
+  Detalles que salieron al leer el código (2026-11-14):
+  - El content script manda intervalos `{ from, to }` en **segundos** (float) cada ~2 s. Mandar cada uno
+    sería un evento cada 2 s: la extensión los **junta** en un evento por tramo continuo del mismo video
+    y convierte a **ms**.
+  - Deuchan está publicada en la Chrome Web Store: el permiso va en `optional_host_permissions`
+    (`http://127.0.0.1/*`) y se pide al activar la opción, así no le aparece un aviso nuevo a todos.
+  - Además de intervalos, manda `day_total` (lo que muestra su dashboard ese día, con correcciones) cuando
+    cambia un día reciente, y `video_removed` cuando el usuario saca un video de un día.
+  - El prompt para el agente que lo implementa está en [`docs/prompts/deuchan-mosaik.md`](prompts/deuchan-mosaik.md).
 
 ### 1.4 asbplayer y Yomitan
 
@@ -103,7 +112,9 @@ del progreso y en qué contexto apareció cada palabra.
 ## 3. Modelo de datos
 
 Capas: `raw_*` (tal cual la fuente) → modelo común → métricas (consultas o vistas, no tablas).
-Timestamps: enteros en **ms UTC**. Borrador de esquema (ajustar en la fase 0):
+Timestamps: enteros en **ms UTC**. Borrador de esquema. La fase 0 creó solo `connector_state`
+(`packages/hub/migrations/0001_init.sql`, tabla `STRICT`); cada fase agrega su migración con sus tablas,
+ajustando este borrador:
 
 ```sql
 -- Estado de cada conector
@@ -112,7 +123,8 @@ CREATE TABLE connector_state (
   cursor TEXT,                      -- JSON con lo que necesite cada conector
   last_run_at INTEGER,
   last_ok_at INTEGER,
-  last_error TEXT
+  last_error TEXT,
+  last_summary TEXT                 -- JSON: qué hizo la última corrida buena (para la página Fuentes)
 );
 
 -- Crudo
@@ -159,15 +171,20 @@ Reglas de atribución del origen de una tarjeta, en orden:
 4. Está en `Refold Alemán-mil` → `refold-1k`.
 5. Si no, `unknown` (y se muestra cuántas hay, para mejorar las reglas).
 
-Evento de ingesta (en `packages/shared`, validado con zod):
+Evento de ingesta (en `packages/shared/src/ingest.ts`, validado con zod; detalle en
+[`docs/ingest-api.md`](ingest-api.md)). Horas en **ms UTC**:
 
 ```ts
 type IngestEvent =
   | { id: string; source: "deuchan"; kind: "watch_interval"; language: string;
       from: number; to: number; seconds: number; videoId: string; title?: string; channelId?: string }
-  | { id: string; source: "deuchan"; kind: "day_total"; language: string;   // backfill
-      day: string; seconds: number; videos?: { videoId: string; title: string; seconds: number }[] };
+  | { id: string; source: "deuchan"; kind: "day_total"; language: string;   // backfill y días recientes
+      day: string; at: number; seconds: number; videos?: { videoId: string; title: string; seconds: number }[] }
+  | { id: string; source: "deuchan"; kind: "video_removed"; day: string; at: number; videoId: string };
 ```
+
+`day_total` es una foto del día: por cada `day` vale la de `at` más nuevo. Para los totales por día manda
+`day_total` (incluye las correcciones del usuario); los intervalos dan el detalle (horas, video, sesiones).
 
 Los intervalos de Deuchan se agrupan en sesiones por video cuando el hueco entre intervalos es menor a 10 min.
 
@@ -252,7 +269,8 @@ comprensión por video en Deuchan, metas, API compatible con Kechimochi (evaluar
 - Qué queda en `Source` de las tarjetas de Ace Attorney (título de la pestaña TextFeed o nombre del juego).
 - Que Yomitan (`{url}`) y asbplayer puedan llenar un campo `URL` en `Kiku Deutsch`.
 - Corte de día preferido (por defecto 4:00).
-- Si `node:sqlite` alcanza (FTS5 incluido) o hace falta `better-sqlite3`.
+- ~~Si `node:sqlite` alcanza (FTS5 incluido) o hace falta `better-sqlite3`.~~ Verificado en la fase 0:
+  Node 24.19 trae SQLite 3.53 con FTS5 (hay un test que lo comprueba).
 
 ## 7. Referencias: herramientas existentes
 
