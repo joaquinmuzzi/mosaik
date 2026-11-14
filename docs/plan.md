@@ -15,8 +15,15 @@ del progreso y en qué contexto apareció cada palabra.
 ### 1.1 GameSentenceMiner (GSM)
 
 - **Base:** `%APPDATA%\GameSentenceMiner\gsm.db`. Si el usuario cambió la carpeta de datos, la ruta está en
-  `~/.config/GameSentenceMiner/data_dir.json` (campo `dataDir`). SQLite en modo **WAL**: abrir el archivo
-  original en solo lectura (`file:<ruta>?mode=ro`); no copiar el `.db` sin el `-wal`.
+  `~/.config/GameSentenceMiner/data_dir.json` (campo `dataDir`; hay un puntero viejo con el mismo nombre en la
+  carpeta por defecto). SQLite en modo **WAL**; no copiar el `.db` sin el `-wal`.
+- **Abrirla sin escribir (verificado en la fase 2):** `?mode=ro` (o `readOnly`) **no alcanza**: si no existen
+  `gsm.db-wal` y `gsm.db-shm`, SQLite los crea igual en la carpeta de GSM. El conector:
+  - si los dos existen (GSM abierto), abre en solo lectura y ve lo que GSM todavía no pasó al archivo
+    principal. SQLite anota en el `-shm` qué está leyendo (por eso cambia su fecha); es necesario para leer
+    de forma consistente mientras GSM escribe, y no toca la base;
+  - si no existen (GSM cerrado, todo está en el archivo principal), abre con `?immutable=1`: no crea ni
+    bloquea nada.
 - **Tablas útiles:**
 
 | Tabla | Columnas relevantes | Uso |
@@ -28,15 +35,33 @@ del progreso y en qué contexto apareció cada palabra.
 | `stats_reading_breaks` | pausas marcadas a mano (timestamps) | Respetarlas al calcular tiempo. |
 | `third_party_stats` | `date`, `characters_read`, `time_read_seconds`, `source`, `label` | Lectura cargada por fuera (mokuro, manual). Útil para la fase de lectura. |
 | `anki_notes`, `anki_cards`, `anki_reviews` | copia de Anki | **No usar**: leemos Anki directo. |
-| `words`, `word_occurrences`, `kanji*` | tokenización japonesa (MeCab/Sudachi) | Probablemente vacías para alemán. Ignorar. |
+| `words`, `word_occurrences`, `kanji*` | tokenización japonesa (MeCab/Sudachi) | En GSM 2026.11 no existen. |
+| `archived_game_days` | días archivados por GSM (eventos comprimidos por línea) | Si GSM archiva un día, sus líneas salen de `game_lines` pero siguen contando. |
 
-- **Cálculo del tiempo de lectura de GSM** (`GameSentenceMiner/web/stats.py`, `calculate_actual_reading_time`):
-  ordena las líneas por `timestamp`; mira el hueco entre líneas consecutivas; si el hueco supera
-  `session_gap_seconds` (por defecto **1800**) corta la sesión; si cruza una pausa de `stats_reading_breaks`
-  no lo cuenta; dentro de cada sesión calcula el ritmo mediano (segundos por carácter) y **limita cada hueco
-  a 2,5 veces** lo esperado para esa línea según ese ritmo; la última línea de cada sesión no suma.
-  Hay que portar este algoritmo (leer `session_reading_seconds` en el mismo archivo para los detalles de los
-  filtros) para que nuestras horas coincidan con las de GSM.
+- **Verificado en el `gsm.db` real (2026-11-14, GSM 2026.11.0):**
+  - `timestamp` es REAL (segundos con decimales); `last_modified` y `created_at` son TEXT con segundos epoch.
+    GSM **edita** líneas después de crearlas (llena `note_ids` al minar): el conector compara por
+    `last_modified`, no por hora.
+  - `note_ids` es un JSON de **strings** (`["1794636870987"]`) y se llena al minar desde TextFeed con Yomitan.
+  - `language` es la configuración de GSM al leer la línea, no una detección: las primeras líneas de Ace Attorney
+    quedaron en `ja` hasta que se cambió el idioma. Las del 2026-08-26 sí son japonés (una prueba).
+  - Los "juegos" son escenas de OBS: también ventanas del navegador ("… - YouTube - Brave").
+    `character_count` está en 0 (no hay % completado) y `type` vacío.
+  - `config.json` (en la carpeta de datos) tiene la sección `stats` con `session_gap_seconds` (1800),
+    `regex_out_repetitions`, `extra_punctuation_regex` y `day_rollover_hour` (4). El conector lee las tres
+    primeras para contar igual que GSM.
+- **Cálculo del tiempo de lectura de GSM** (`web/stats.py`, `calculate_actual_reading_time`, y
+  `util/stats/stats_util.py`), portado a `packages/hub/src/connectors/gsm/reading-time.ts`:
+  - ordena las líneas por `timestamp`; cada hueco se acredita a la línea anterior; un hueco mayor a
+    `session_gap_seconds` corta la sesión y no suma; uno que cruza una pausa no suma (ni enseña el ritmo);
+  - dentro de cada sesión, el ritmo es la **mediana** de caracteres/segundo de los huecos usables (línea de
+    5+ caracteres, hueco entre 1 y 300 s); cada hueco suma como mucho `max(2 s, caracteres / ritmo × 2,5)`,
+    con techo de 300 s (sin ritmo: 3 s por carácter); la última línea de cada sesión no suma;
+  - los caracteres se cuentan **sin puntuación, símbolos ni separadores (espacios incluidos)**, en puntos de
+    código (`clean_text_for_stats`).
+- **Cómo arma GSM sus totales diarios** (`util/cron/daily_rollup.py`): días de **medianoche local** (no usa
+  `day_rollover_hour`), solo hasta ayer; por cada día y juego recalcula el tiempo con las líneas de ese día;
+  las líneas sin `game_id` no cuentan.
 - **API HTTP** (solo con GSM abierto, puerto `7275`): `/api/daily-activity`, `/api/stats`,
   `/api/anki_stats_combined`, `/api/third-party-stats` (GET/POST), `/api/stats-export/*`. Es interna de su
   dashboard y puede cambiar: **no depender de ella** para el historial.
@@ -167,20 +192,27 @@ CREATE TABLE raw_events (id TEXT PRIMARY KEY, source TEXT NOT NULL, kind TEXT NO
 
 -- Modelo común
 CREATE TABLE contents (
-  id TEXT PRIMARY KEY,              -- 'gsm:<game_id>', 'yt:<videoId>', 'yt-channel:<id>', 'book:<...>'
+  id TEXT PRIMARY KEY,              -- 'gsm:<game_id>', 'gsm-name:<escena>', 'yt:<videoId>', 'book:<...>'
+  source TEXT NOT NULL,             -- cada fuente reconstruye sus filas
   kind TEXT NOT NULL,               -- 'game' | 'video' | 'book' | 'deck'
   title TEXT, external_id TEXT, parent_id TEXT, total_units INTEGER, unit TEXT, meta TEXT
 );
 CREATE TABLE sessions (
   id TEXT PRIMARY KEY, source TEXT NOT NULL, medium TEXT NOT NULL,  -- medium: 'game'|'video'|'reading'
-  language TEXT NOT NULL DEFAULT 'de', content_id TEXT REFERENCES contents(id),
+  language TEXT NOT NULL, content_id TEXT REFERENCES contents(id),
   start_ts INTEGER NOT NULL, end_ts INTEGER NOT NULL, seconds REAL NOT NULL,
-  units INTEGER, unit TEXT          -- p. ej. caracteres leídos
+  units INTEGER, unit TEXT,         -- p. ej. caracteres leídos
+  lines INTEGER
 );
 CREATE TABLE lines (                -- oraciones vistas, para el buscador
-  id TEXT PRIMARY KEY, source TEXT NOT NULL, content_id TEXT, ts INTEGER NOT NULL, text TEXT NOT NULL
+  id TEXT PRIMARY KEY, source TEXT NOT NULL, content_id TEXT, session_id TEXT, ts INTEGER NOT NULL,
+  text TEXT NOT NULL, language TEXT,
+  chars INTEGER NOT NULL,           -- caracteres como los cuenta la fuente
+  seconds REAL NOT NULL,            -- tiempo de lectura acreditado a esta línea
+  note_ids TEXT                     -- JSON con las notas de Anki minadas de esta línea
 );
-CREATE VIRTUAL TABLE lines_fts USING fts5(text, content='lines', content_rowid='rowid');
+CREATE VIRTUAL TABLE lines_fts USING fts5(text, content='lines', content_rowid='rowid',
+  tokenize='trigram remove_diacritics 1');  -- encuentra "wand" dentro de "Einwand"
 CREATE TABLE cards (
   note_id INTEGER PRIMARY KEY, word TEXT, deck TEXT, model TEXT,
   origin TEXT NOT NULL,             -- 'gsm'|'youtube'|'refold-1k'|'unknown'
@@ -199,9 +231,17 @@ La fase 1 creó `raw_anki_notes`, `raw_anki_cards`, `raw_anki_reviews`, `cards` 
 `cards`/`reviews` se reconstruyen enteras desde lo crudo después de cada sincronización. Para contar repasos
 solo valen los tipos 0–3 (como Anki); los 4 y 5 se guardan pero no cuentan.
 
-Reglas de atribución del origen de una tarjeta, en orden (la fase 1 implementa la 4 y la 5):
+La fase 2 creó `raw_gsm_lines`, `raw_gsm_games` (sin la imagen de portada), `raw_gsm_breaks`, `contents`,
+`sessions`, `lines` y `lines_fts` (`0003_gsm.sql`). Las sesiones de GSM son las del algoritmo de GSM por juego
+(no se cortan a medianoche); el idioma de una sesión es el más frecuente entre sus líneas. **El tiempo de un
+día es la suma de `lines.seconds` de las líneas de ese día**, con el corte de Mosaik (4:00): así una sesión que
+cruza el corte reparte su tiempo entre los dos días sin estimar nada. Solo se reconstruye cuando cambió algo
+(líneas, juegos, pausas o la configuración de GSM).
+
+Reglas de atribución del origen de una tarjeta, en orden (implementadas: 1, 1b, 4 y 5):
 1. Su `note_id` aparece en `note_ids` de una línea de GSM → `gsm`, con `content_id` y `line_id`.
-   Respaldo si `note_ids` no está: tag `GSM` + tag `Game::<juego>` / `MiscInfo` con el nombre del juego.
+   1b. Si no, tiene el tag `GSM` (lo pone GSM al minar) → `gsm`; `content_id` del juego cuyo título coincide con
+   `source_title`, si hay uno (las tarjetas de Katawa Shoujo no tienen líneas en el `gsm.db` actual).
 2. Tiene campo `URL` con un video de YouTube → `youtube`, `content_id = yt:<videoId>`.
 3. `source_title` (`MiscInfo` limpio: sin `(N) `, sin ` - YouTube`, sin HTML) coincide con el título de un video
    de Deuchan del mismo día → `youtube`.
@@ -279,6 +319,12 @@ Cada fase termina con tests en verde y sus criterios cumplidos.
 - Atribución regla 1 (`note_ids`).
 - *Criterio:* tests con una `gsm.db` sintética creada en el test (incluye pausas y huecos > 30 min); contra la
   base real, el tiempo diario difiere menos de 5 % de `game_daily_rollup`.
+- *Resultado (2026-11-14):* el port da exactamente lo mismo que GSM: contra `game_daily_rollup` (2 filas del
+  2026-08-26) los caracteres coinciden y los segundos difieren 0,0000 %; con el propio código Python de GSM sobre
+  las líneas de Ace Attorney del día, 2157,465339 s en los dos; y en un set sintético con todos los casos borde
+  (`test/fixtures/gsm/parity.json`, resultado calculado por GSM), igual hasta el microsegundo. Los números propios
+  de Mosaik (tiempo por línea sumado por día) también difieren 0,00 %. `npm run verify:gsm` lo repite. 463 líneas,
+  4 sesiones; 5 tarjetas minadas quedan con origen `gsm` (3 por `note_ids`, 2 por el tag).
 
 **Fase 3 — Ingesta y Deuchan**
 - `POST /api/ingest/events` con validación zod, dedupe por `id`, respuesta con aceptados/rechazados.
@@ -304,8 +350,9 @@ comprensión por video en Deuchan, metas, API compatible con Kechimochi (evaluar
 
 ## 6. Pendiente de verificar
 
-- En la `gsm.db` real: valor de `language` para alemán; que `note_ids` se llene al minar desde GSM TextFeed con
-  Yomitan; que las tablas de tokenización estén vacías.
+- ~~En la `gsm.db` real: valor de `language` para alemán; que `note_ids` se llene al minar desde GSM TextFeed
+  con Yomitan; que las tablas de tokenización estén vacías.~~ Verificado en la fase 2: `de` (pero es la
+  configuración de GSM al leer, no una detección); `note_ids` sí se llena; las tablas de tokenización no existen.
 - ~~Qué queda en `Source` de las tarjetas de Ace Attorney.~~ Verificado en la fase 1: no hay `Source`; en
   `MiscInfo` queda el **nombre del juego** (`Phoenix Wright: Ace Attorney Trilogy`), con tags `GSM` y
   `Game::PhoenixWright:AceAttorneyTrilogy`.

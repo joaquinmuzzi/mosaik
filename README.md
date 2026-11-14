@@ -15,7 +15,12 @@ Todo corre en esta computadora: el servidor escucha solo en `127.0.0.1` y ningú
   `Refold Alemán-mil` al arrancar y cada 5 minutos, solo leyendo. Con Anki cerrado anota el error y
   reintenta. La fuente aparece en el dashboard con su resumen y un botón para sincronizar.
 
-Siguen GameSentenceMiner (fase 2) y Deuchan (fase 3).
+- **Fase 2 (GameSentenceMiner)**: el hub lee `gsm.db` sin escribir nada (ni crear archivos al lado),
+  copia líneas, juegos y pausas, y calcula sesiones y tiempo de lectura con el mismo algoritmo que GSM
+  (da exactamente lo mismo). Las líneas quedan indexadas para el buscador de oraciones, y las tarjetas
+  minadas desde GSM quedan atribuidas a su juego y a su línea.
+
+Sigue Deuchan (fase 3).
 
 ## Requisitos
 
@@ -56,6 +61,7 @@ y abrir <http://127.0.0.1:7300>.
 | `npm run lint` | ESLint |
 | `npm run format` / `npm run format:check` | Prettier (los `.md` quedan fuera) |
 | `npm run verify:anki` | Con Anki abierto: sincroniza y compara los repasos por día con las estadísticas de Anki (`-- --no-sync` para solo comparar) |
+| `npm run verify:gsm` | Sincroniza con `gsm.db` y compara el tiempo de lectura con los totales diarios de GSM (`-- --no-sync` para solo comparar) |
 
 ## Configuración
 
@@ -66,7 +72,7 @@ Todas son opcionales:
 |---|---|---|
 | `HUB_PORT` | `7300` | Puerto del hub (siempre en `127.0.0.1`) |
 | `HUB_DB_PATH` | `%LOCALAPPDATA%\Mosaik\mosaik.db` | Base propia de Mosaik |
-| `GSM_DB_PATH` | `%APPDATA%\GameSentenceMiner\gsm.db` | Base de GSM, que se abre solo para leer |
+| `GSM_DB_PATH` | la de GSM: `%APPDATA%\GameSentenceMiner\gsm.db`, o la carpeta de `data_dir.json` | Base de GSM, que se abre solo para leer; su `config.json` se lee de la misma carpeta |
 | `ANKICONNECT_URL` | `http://127.0.0.1:8765` | AnkiConnect |
 | `ANKI_DECKS` | `German Mining,Refold Alemán-mil` | Mazos que se leen (con sus submazos), separados por coma |
 | `ANKI_REFOLD_DECKS` | `Refold Alemán-mil` | De esos, los mazos armados: sus tarjetas cuentan como `refold-1k` |

@@ -24,7 +24,7 @@ Nombre de trabajo del proyecto: `Mosaik`.
 | Fuente | Cómo se lee | Datos clave |
 |---|---|---|
 | **Anki** | AnkiConnect, `http://127.0.0.1:8765`, solo con Anki abierto | Mazos `German Mining` (note types `Kiku` y `Kiku Deutsch`: palabra en `Expression`, origen en `MiscInfo`) y `Refold Alemán-mil`. Notas (`notesInfo`), estado de tarjetas (`cardsInfo`), repasos incrementales (`cardReviews(deck, startID)`). Ojo: `cardReviews` crea el mazo si no existe. |
-| **GameSentenceMiner (GSM)** | SQLite `%APPDATA%\GameSentenceMiner\gsm.db`, **solo lectura** | `game_lines` (una fila por línea leída, con `timestamp`, `game_id`, `note_ids`), `games`, `game_daily_rollup`, `stats_reading_breaks`. |
+| **GameSentenceMiner (GSM)** | SQLite `%APPDATA%\GameSentenceMiner\gsm.db`, **solo lectura** (ojo: `?mode=ro` igual crea `-wal`/`-shm`; ver `connectors/gsm/source.ts`) | `game_lines` (una fila por línea leída, con `timestamp`, `game_id`, `note_ids`, `last_modified`), `games`, `game_daily_rollup`, `stats_reading_breaks`. El tiempo se calcula con el algoritmo de GSM portado tal cual. |
 | **Deuchan** (extensión de Chrome del usuario, repo `joaquinmuzzi/Deuchan`) | Push: la extensión manda intervalos al hub por HTTP | Intervalos `{ id, from, to, seconds, videoId, title }`. Hoy solo guarda totales por día en `chrome.storage.local`; hay que agregarle el envío. |
 
 Futuro: lectura (novelas, lectores web como ttu).
@@ -89,6 +89,7 @@ npm run typecheck
 npm run lint
 npm run format
 npm run verify:anki  # sincroniza con el Anki real y compara repasos por día (Anki abierto)
+npm run verify:gsm   # sincroniza con el gsm.db real y compara con los totales diarios de GSM
 ```
 
 Variables de entorno (con valores por defecto razonables): `HUB_PORT` (7300), `HUB_DB_PATH`,
