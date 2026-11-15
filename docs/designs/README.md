@@ -64,7 +64,9 @@ presentación, no parte del método, y el estilo puede cansar si se lo mira todo
   visualización (contraste, separación con daltonismo) para su fondo.
 - Buscar, Fuentes, la página de un día y la ficha de un contenido usan las páginas de siempre con los colores
   de la variante.
-- Portadas: si GSM tiene una imagen guardada para un juego, se usa (hoy ningún juego tiene). Las miniaturas
-  de YouTube están apagadas: pedirlas le dice a YouTube qué videos miraste. Se prenden con
-  `YOUTUBE_THUMBNAILS=1` en `.env`, y cada una se baja una sola vez y queda guardada. Sin portada se muestran
-  las iniciales sobre el color de la fuente.
+- Portadas: en la ficha de cada contenido, **Buscar en Steam** busca el juego por su nombre y te deja elegir la
+  carátula (vertical, 600×900), y **Subir imagen** usa una tuya. La elegida queda guardada en Mosaik y ninguna
+  sincronización la pisa; **Quitar portada** vuelve a la automática. Si GSM guarda una imagen para un juego,
+  se usa sola. Las miniaturas de YouTube se prenden con `YOUTUBE_THUMBNAILS=1` en `.env` (le dice a YouTube
+  qué videos miraste); cada una se baja una sola vez. Sin portada se muestran las iniciales sobre el color
+  de la fuente.

@@ -130,6 +130,10 @@ Todas son opcionales:
 | `GET /api/anki` | Tarjetas y retención por origen, y la evolución por semana |
 | `GET /api/contents` | Juegos y videos con su tiempo, sesiones y tarjetas |
 | `GET /api/contents/:id` | La ficha de un contenido |
+| `PUT /api/contents/:id/cover` | Guarda la imagen enviada (PNG, JPEG, WebP o GIF, hasta 5 MB) como portada elegida |
+| `DELETE /api/contents/:id/cover` | Quita la portada elegida y vuelve a la automática |
+| `GET /api/covers/steam?q=` | Busca juegos en Steam para elegir portada (solo cuando se pide) |
+| `POST /api/contents/:id/cover/steam` | Baja la portada del juego de Steam `{ appId }` y la guarda |
 | `GET /api/search?q=` | Oraciones leídas que contienen el texto (3 letras como mínimo) |
 
 El hub rechaza pedidos cuyo `Host` no sea esta computadora (contra DNS rebinding) y los cambios
