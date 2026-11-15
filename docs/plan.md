@@ -398,8 +398,12 @@ Cada fase termina con tests en verde y sus criterios cumplidos.
     computadora. Con la tarea corriendo, el dashboard está en `http://127.0.0.1:7300`; para desarrollar con
     `npm run dev`, parar antes la tarea (los dos usan el puerto 7300).
 
+**Fases 7 a 13 — Servidor y varias PC:** Mosaik en Railway con login y un agente en cada PC que lee Anki y GSM.
+Plan completo en [`plan-servidor.md`](plan-servidor.md).
+
 Ideas para después: lectura (ttu u otros lectores web), subtítulos de YouTube en `lines`, nota de
-comprensión por video en Deuchan, metas, API compatible con Kechimochi (evaluar), exportar CSV/JSON.
+comprensión por video en Deuchan, metas, API compatible con Kechimochi (evaluar). Exportar a CSV ya está hecho
+(Fuentes → Exportar).
 
 ## 6. Pendiente de verificar
 
