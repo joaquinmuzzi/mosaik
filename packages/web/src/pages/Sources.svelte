@@ -2,6 +2,8 @@
   import type { SourceStatus } from "@mosaik/shared";
   import { onMount } from "svelte";
   import { getSources, syncSource } from "../lib/api";
+  import { isServer } from "../lib/auth.svelte";
+  import Devices from "../lib/Devices.svelte";
   import { duration, number } from "../lib/format";
 
   let sources = $state<SourceStatus[]>([]);
@@ -92,8 +94,13 @@
 <section class="card" aria-labelledby="sources-title">
   <h2 id="sources-title">Fuentes</h2>
   <p class="note">
-    Anki y GameSentenceMiner se leen al arrancar y cada 5 minutos (también a pedido). Deuchan manda sus datos
-    solo, cada minuto, cuando la opción "Send to Mosaik" está prendida.
+    {#if isServer()}
+      Cada computadora manda lo suyo: su agente lee Anki y GameSentenceMiner cada 5 minutos, y Deuchan manda
+      sus datos cada minuto. Una fila por fuente y computadora.
+    {:else}
+      Anki y GameSentenceMiner se leen al arrancar y cada 5 minutos (también a pedido). Deuchan manda sus
+      datos solo, cada minuto, cuando la opción "Send to Mosaik" está prendida.
+    {/if}
   </p>
   {#if error}
     <p class="error">No se pudo leer el estado: {error}</p>
@@ -110,10 +117,13 @@
         </tr>
       </thead>
       <tbody>
-        {#each sources as source (source.source)}
+        {#each sources as source (`${source.source}|${source.device}`)}
           <tr>
             <td>
-              <span class="source-name">{source.source}</span>
+              <span class="source-name"
+                >{source.source}{#if isServer() || source.device !== "principal"}
+                  <span class="device">· {source.device}</span>{/if}</span
+              >
               {#if summaryText(source.lastSummary)}
                 <span class="summary">{summaryText(source.lastSummary)}</span>
               {/if}
@@ -143,8 +153,10 @@
                   Sincronizar
                 </button>
               {:else}
-                <!-- A source that pushes (Deuchan): the hub does not fetch it -->
-                <span class="summary">la envía la extensión</span>
+                <!-- A source that pushes (Deuchan, or an agent): the hub does not fetch it -->
+                <span class="summary"
+                  >{source.source === "deuchan" ? "la envía la extensión" : "la manda su agente"}</span
+                >
               {/if}
             </td>
           </tr>
@@ -170,7 +182,16 @@
   </ul>
 </section>
 
+{#if isServer()}
+  <Devices />
+{/if}
+
 <style>
+  .device {
+    color: var(--muted);
+    font-weight: 400;
+  }
+
   .exports {
     list-style: none;
     margin: 0;

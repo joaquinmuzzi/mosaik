@@ -120,6 +120,10 @@ Todas son opcionales:
 | `YOUTUBE_THUMBNAILS` | apagado | `1` para pedirle a YouTube las miniaturas de los videos (una vez cada una) |
 | `TARGET_LANGUAGE` | `de` | Idioma que se aprende: solo sus sesiones cuentan como inmersión |
 | `LOG_LEVEL` | `info` | `fatal` … `trace`, o `silent` |
+| `MOSAIK_MODE` | `local` | `server` para un servidor en internet (Railway): login, sin conectores propios |
+| `PUBLIC_URL` | — | Modo servidor: la dirección que se abre (`https://…`); solo ese host recibe respuesta |
+| `SETUP_TOKEN` | — | Modo servidor: secreto de un solo uso (16 caracteres o más) que crea la cuenta |
+| `PORT` | — | Modo servidor: el puerto que da el hosting (si no, `HUB_PORT`) |
 
 ## API (por ahora)
 
@@ -136,6 +140,10 @@ Todas son opcionales:
 | `GET /api/stats` | Todos los días desde el primero con algo, y los destacados (récords y rachas) |
 | `GET /api/export/days.csv` | Los días como CSV (también `contents.csv` y `cards.csv`) |
 | `GET /api/export/backup` | Una copia completa de la base (SQLite), tomada sin parar el hub |
+| `GET /api/auth/status` | Modo y sesión: `{ mode, authenticated, setupNeeded, username }` |
+| `POST /api/auth/setup`, `/login`, `/logout` | Modo servidor: crear la cuenta (con `SETUP_TOKEN`), entrar y salir |
+| `GET`/`POST /api/devices`, `DELETE /api/devices/:name` | Modo servidor: computadoras que mandan datos y sus tokens |
+| `GET /api/agent/state?source=`, `POST /api/agent/batches` | Modo servidor, con token de dispositivo: lo que el agente necesita y sus lotes |
 | `GET /api/contents` | Juegos y videos con su tiempo, sesiones y tarjetas |
 | `GET /api/contents/:id` | La ficha de un contenido |
 | `PUT /api/contents/:id/cover` | Guarda la imagen enviada (PNG, JPEG, WebP o GIF, hasta 5 MB) como portada elegida |

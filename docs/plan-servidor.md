@@ -93,6 +93,21 @@ Cada fase termina con tests en verde y sus criterios cumplidos, como las anterio
 - *Criterio:* tests de login (bien, mal, límite), de tokens (válido, revocado), de lotes (aplicar dos veces no
   duplica), y de que sin sesión no se lee nada.
 
+- *Resultado (2026-11-15):* `MOSAIK_MODE=server` con `PUBLIC_URL`, `SETUP_TOKEN` y `PORT`
+  (`config.ts`); migración 0008 (`account`, `auth_sessions`, `devices`); `src/auth.ts` (scrypt, tokens de
+  sesión y de dispositivo guardados como SHA-256, límite de 5 intentos fallidos por dirección y 30 en total cada
+  15 minutos, detrás del proxy confía solo en el primer salto); `src/api/agent.ts` (estado del agente y aplicar
+  lotes como su dispositivo). En el dashboard: página de login (crea la cuenta la primera vez), "Cerrar sesión"
+  y la sección **Dispositivos** en Fuentes (token visible una sola vez, revocar). Cabeceras: CSP, HSTS,
+  `nosniff`, `X-Frame-Options`. Tests nuevos (`test/server-mode.test.ts`). Prueba real con un servidor en
+  modo `server` sobre una copia de la base: crear la cuenta y un dispositivo desde el navegador (portadas y
+  fuentes cargan con la CSP), y un agente de prueba que leyó el GSM y el Anki reales y los mandó dos veces.
+  Esa prueba encontró un error: el mismo GSM mandado desde dos dispositivos (una base copiada) fallaba en los
+  juegos. Ahora los juegos se guardan por dispositivo, y una línea queda con la primera computadora que la
+  mandó (el agente sabe qué líneas ya están, de cualquier computadora, y no las reenvía).
+- *Queda para la fase 9:* el cursor de Anki es por dispositivo, así que cada computadora nueva reenvía todos
+  los repasos una vez (el servidor los descarta por ID); como la colección es la misma, podría ser uno solo.
+
 **Fase 9 — Modo agente**
 - `MOSAIK_MODE=agent` con `SERVER_URL`, `DEVICE_TOKEN`, `AGENT_SEND_TEXT`: corre los `read` de Anki y GSM cada
   5 minutos, manda los lotes, guarda los que fallan en `outbox` y reintenta con espera creciente.

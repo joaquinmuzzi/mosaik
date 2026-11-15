@@ -1,16 +1,27 @@
 /**
  * The hub's settings, read from environment variables (and `.env`, which `npm run dev` and
  * `npm start` load). Every one has a default, so the hub starts with no configuration at all.
+ *
+ * `MOSAIK_MODE` picks how it runs: `local` (the default) listens on 127.0.0.1 only, reads Anki and GSM
+ * itself and has no login; `server` is for a server on the internet (Railway): it listens on all
+ * interfaces, reads no sources (agents send them), and asks for a login.
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { isValidTimeZone } from "@mosaik/shared";
 import { z } from "zod";
 
+export type Mode = "local" | "server";
+
 export interface Config {
-  /** Always 127.0.0.1: nothing leaves this computer. */
-  host: "127.0.0.1";
+  mode: Mode;
+  /** 127.0.0.1 in local mode, so nothing leaves this computer; all interfaces in server mode. */
+  host: "127.0.0.1" | "0.0.0.0";
   port: number;
+  /** Server mode: the address people open (`https://mosaik.example.app`); only that host is answered. */
+  publicUrl: string | null;
+  /** Server mode: the one-time secret that creates the account. */
+  setupToken: string | null;
   dbPath: string;
   /** GSM_DB_PATH, or `null` to find GameSentenceMiner's database where GSM keeps it. */
   gsmDbPath: string | null;
@@ -59,8 +70,15 @@ const deckList = z
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
 
+const port = z.coerce.number().int().min(1).max(65_535);
+
 const envSchema = z.object({
-  HUB_PORT: optional(z.coerce.number().int().min(1).max(65_535)),
+  MOSAIK_MODE: optional(z.enum(["local", "server"])),
+  HUB_PORT: optional(port),
+  // Set by Railway and most hosts; used in server mode only
+  PORT: optional(port),
+  PUBLIC_URL: optional(z.url({ protocol: /^https?$/ })),
+  SETUP_TOKEN: optional(z.string().min(16, "must be at least 16 characters")),
   HUB_DB_PATH: optional(z.string()),
   GSM_DB_PATH: optional(z.string()),
   ANKICONNECT_URL: optional(z.url({ protocol: /^https?$/ })),
@@ -86,9 +104,26 @@ export function loadConfig(env: Env = process.env, platform: NodeJS.Platform = p
     throw new ConfigError(`Invalid configuration:\n  ${problems.join("\n  ")}`);
   }
   const values = parsed.data;
+  const mode = values.MOSAIK_MODE ?? "local";
+  let publicUrl: string | null = null;
+  if (mode === "server") {
+    if (!values.PUBLIC_URL) {
+      throw new ConfigError("Invalid configuration:\n  PUBLIC_URL: required in server mode");
+    }
+    const url = new URL(values.PUBLIC_URL);
+    // The session cookie is Secure: plain http is only fine for trying the server mode on this computer
+    const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    if (url.protocol !== "https:" && !local) {
+      throw new ConfigError("Invalid configuration:\n  PUBLIC_URL: must be https:// in server mode");
+    }
+    publicUrl = url.origin;
+  }
   return {
-    host: "127.0.0.1",
-    port: values.HUB_PORT ?? 7300,
+    mode,
+    host: mode === "server" ? "0.0.0.0" : "127.0.0.1",
+    port: (mode === "server" ? values.PORT : undefined) ?? values.HUB_PORT ?? 7300,
+    publicUrl,
+    setupToken: mode === "server" ? (values.SETUP_TOKEN ?? null) : null,
     dbPath: values.HUB_DB_PATH ?? defaultDbPath(env, platform),
     gsmDbPath: values.GSM_DB_PATH ?? null,
     ankiConnectUrl: values.ANKICONNECT_URL ?? "http://127.0.0.1:8765",

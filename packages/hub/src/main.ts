@@ -46,14 +46,22 @@ async function main(): Promise<void> {
       error: (object, message) => schedulerLog.error(object, message),
     },
   });
-  for (const connector of createConnectors(db, config)) {
-    scheduler.register(connector);
+  // In server mode the sources are read on each computer, by its agent
+  if (config.mode === "local") {
+    for (const connector of createConnectors(db, config)) {
+      scheduler.register(connector);
+    }
   }
 
   const app = await buildServer({ config, db, scheduler, logger });
   schedulerLog = app.log;
   app.log.info(
-    { dbPath: config.dbPath, schemaVersion: schemaVersion(db), migrationsApplied: applied },
+    {
+      mode: config.mode,
+      dbPath: config.dbPath,
+      schemaVersion: schemaVersion(db),
+      migrationsApplied: applied,
+    },
     "database ready",
   );
 

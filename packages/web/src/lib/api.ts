@@ -3,7 +3,9 @@ import type {
   AnkiStatsResponse,
   ContentDetailResponse,
   ContentsResponse,
+  CreateDeviceResponse,
   DayDetailResponse,
+  DevicesResponse,
   HealthResponse,
   OverviewResponse,
   SearchResponse,
@@ -13,13 +15,54 @@ import type {
   SyncOutcome,
 } from "@mosaik/shared";
 
+/** Called when the API answers 401 (a session that ended); the login state subscribes to it. */
+let unauthorized: () => void = () => {};
+export function onUnauthorized(callback: () => void): void {
+  unauthorized = callback;
+}
+
+/** An answer that was not OK, with the error code the hub sent (`invalid_credentials`, …). */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+  readonly body: Record<string, unknown>;
+
+  constructor(message: string, status: number, body: Record<string, unknown>) {
+    super(message);
+    this.status = status;
+    this.code = typeof body.error === "string" ? body.error : null;
+    this.body = body;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
   if (!response.ok) {
-    throw new Error(`${init?.method ?? "GET"} ${path}: HTTP ${response.status}`);
+    const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    // A session that ended (server mode): back to the login page
+    if (response.status === 401 && !path.startsWith("/api/auth/")) unauthorized();
+    throw new ApiError(`${init?.method ?? "GET"} ${path}: HTTP ${response.status}`, response.status, body);
   }
   return (await response.json()) as T;
 }
+
+const send = <T>(method: string, path: string, body?: unknown) =>
+  request<T>(path, {
+    method,
+    ...(body === undefined
+      ? {}
+      : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+  });
+
+export const setupAccount = (token: string, username: string, password: string) =>
+  send<{ ok: true }>("POST", "/api/auth/setup", { token, username, password });
+export const login = (username: string, password: string) =>
+  send<{ ok: true }>("POST", "/api/auth/login", { username, password });
+export const logout = () => send<{ ok: true }>("POST", "/api/auth/logout");
+export const getDevices = () => request<DevicesResponse>("/api/devices");
+export const createDevice = (name: string) => send<CreateDeviceResponse>("POST", "/api/devices", { name });
+export const revokeDevice = (name: string) =>
+  send<{ revoked: boolean }>("DELETE", `/api/devices/${encodeURIComponent(name)}`);
 
 export const getHealth = () => request<HealthResponse>("/api/health");
 export const getSources = () => request<SourcesResponse>("/api/sources");

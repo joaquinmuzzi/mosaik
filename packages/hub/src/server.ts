@@ -1,8 +1,12 @@
 /**
  * The HTTP server: the API under `/api` and, once built, the dashboard as static files.
  *
- * It listens on 127.0.0.1 only. Two checks keep web pages out, since any page open in the browser
- * can send requests to localhost:
+ * In server mode (MOSAIK_MODE=server) it answers only for PUBLIC_URL's host and asks for a login: the
+ * dashboard's API needs a session cookie (and changes must come from its own page), agents and Deuchan
+ * send with a device token, and only `/api/health` is open (the host's health check uses it).
+ *
+ * In local mode it listens on 127.0.0.1 only. Two checks keep web pages out, since any page open in the
+ * browser can send requests to localhost:
  * - the Host header must name this computer, so a site that points its own domain at 127.0.0.1
  *   (DNS rebinding) cannot talk to the hub;
  * - requests that change something must come from this computer's pages, from a browser extension,
@@ -14,14 +18,38 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
 import type {
+  AgentBatchResponse,
   AnkiStatsResponse,
+  AuthStatusResponse,
+  CreateDeviceResponse,
+  DevicesResponse,
   HealthResponse,
   OverviewResponse,
   SourceStatus,
   SourcesResponse,
   StatsResponse,
 } from "@mosaik/shared";
-import { dayKey } from "@mosaik/shared";
+import { DEFAULT_DEVICE, connectorBatchSchema, dayKey, deviceSchema } from "@mosaik/shared";
+import { AGENT_BODY_LIMIT, agentState, applyAgentBatch } from "./api/agent.ts";
+import {
+  LoginLimiter,
+  MIN_PASSWORD_LENGTH,
+  SESSION_COOKIE,
+  SESSION_DAYS,
+  bearerToken,
+  checkSession,
+  createAccount,
+  createDevice,
+  createSession,
+  deleteSession,
+  deviceForToken,
+  getAccount,
+  listDevices,
+  readCookie,
+  revokeDevice,
+  sameSecret,
+  verifyPassword,
+} from "./auth.ts";
 import { contentDetail, listContents, searchLines } from "./api/contents.ts";
 import { MAX_COVER_BYTES, getCover, removeManualCover, setManualCover } from "./api/covers.ts";
 import { searchSteam, setSteamCover } from "./api/steam.ts";
@@ -46,6 +74,25 @@ export const WEB_DIST_DIR = fileURLToPath(new URL("../../web/dist/", import.meta
 
 const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "localhost", "[::1]"]);
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/**
+ * What the dashboard may load: its own files, covers through the API, and Steam's images in the cover
+ * picker. Inline styles stay allowed: Svelte and ECharts set style attributes.
+ */
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://*.steamstatic.com",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+].join("; ");
+
+const pathOf = (url: string) => url.split("?")[0] ?? url;
 
 function readVersion(): string {
   try {
@@ -104,18 +151,202 @@ export async function buildServer({
   webDistDir = WEB_DIST_DIR,
   logger = false,
 }: ServerOptions): Promise<FastifyInstance> {
-  // The dashboard polls the API: one log line per request would bury everything else
-  const app = Fastify({ logger, logController: new LogController({ disableRequestLogging: true }) });
+  const server = config.mode === "server";
+  const publicUrl = server && config.publicUrl ? new URL(config.publicUrl) : null;
+  if (server && !publicUrl) throw new Error("Server mode needs PUBLIC_URL");
+  // The dashboard polls the API: one log line per request would bury everything else.
+  // Behind the host's proxy, the client's address is the last one the proxy added.
+  const app = Fastify({
+    logger,
+    logController: new LogController({ disableRequestLogging: true }),
+    // Trusts the first hop only (the host's proxy), so a client cannot fake its address
+    ...(server ? { trustProxy: (_address: string, hop: number) => hop === 0 } : {}),
+  });
   const version = readVersion();
+  // Requests from an agent or Deuchan: the device their token belongs to
+  const deviceOf = new WeakMap<object, string>();
+  const sessionOf = (cookieHeader: string | undefined) => readCookie(cookieHeader, SESSION_COOKIE);
 
   app.addHook("onRequest", async (request, reply) => {
-    if (!isLoopbackHost(request.headers.host)) {
+    if (!server) {
+      if (!isLoopbackHost(request.headers.host)) {
+        return reply.code(403).send({ error: "forbidden_host" });
+      }
+      if (!SAFE_METHODS.has(request.method) && !isTrustedOrigin(request.headers.origin)) {
+        return reply.code(403).send({ error: "forbidden_origin" });
+      }
+      return;
+    }
+    const path = pathOf(request.url);
+    // The host's health check comes with a host of its own, and the answer says nothing private
+    if (path === "/api/health") return;
+    if ((request.headers.host ?? "").toLowerCase() !== publicUrl!.host) {
       return reply.code(403).send({ error: "forbidden_host" });
     }
-    if (!SAFE_METHODS.has(request.method) && !isTrustedOrigin(request.headers.origin)) {
+    // The dashboard's files are public; the page asks for a login itself
+    if (!path.startsWith("/api/")) return;
+    if (path.startsWith("/api/agent/") || path === "/api/ingest/events") {
+      const token = bearerToken(request.headers.authorization);
+      const device = token ? deviceForToken(db, token, Date.now()) : null;
+      if (!device) return reply.code(401).send({ error: "invalid_device_token" });
+      deviceOf.set(request, device);
+      return;
+    }
+    // The rest is the dashboard's, with a cookie: changes must come from its own page
+    if (!SAFE_METHODS.has(request.method) && request.headers.origin !== publicUrl!.origin) {
       return reply.code(403).send({ error: "forbidden_origin" });
     }
+    if (path.startsWith("/api/auth/")) return;
+    const token = sessionOf(request.headers.cookie);
+    if (!token || !checkSession(db, token, Date.now())) {
+      return reply.code(401).send({ error: "unauthenticated" });
+    }
   });
+
+  app.addHook("onSend", async (_request, reply, payload) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("Referrer-Policy", "same-origin");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+    if (publicUrl?.protocol === "https:") {
+      reply.header("Strict-Transport-Security", "max-age=31536000");
+    }
+    return payload;
+  });
+
+  // Login (server mode). Local mode has none: its status always says "authenticated".
+  const limiter = new LoginLimiter();
+  // Over every address together: bounds guessing even from many addresses at once
+  const globalLimiter = new LoginLimiter(30);
+  const cookie = (token: string, maxAge: number) =>
+    [
+      `${SESSION_COOKIE}=${token}`,
+      "Path=/",
+      "HttpOnly",
+      "SameSite=Lax",
+      `Max-Age=${maxAge}`,
+      ...(publicUrl?.protocol === "https:" ? ["Secure"] : []),
+    ].join("; ");
+  const startSession = (reply: FastifyReply, userAgent: string | undefined) =>
+    reply.header("Set-Cookie", cookie(createSession(db, Date.now(), userAgent), SESSION_DAYS * 86_400));
+  const blocked = (ip: string, now: number) =>
+    Math.max(limiter.blockedFor(ip, now), globalLimiter.blockedFor("all", now));
+  const failed = (ip: string, now: number) => {
+    limiter.fail(ip, now);
+    globalLimiter.fail("all", now);
+  };
+  const tooMany = (reply: FastifyReply, wait: number) =>
+    reply.code(429).send({ error: "too_many_attempts", retryAfterSeconds: Math.ceil(wait / 1000) });
+
+  app.get("/api/auth/status", async (request): Promise<AuthStatusResponse> => {
+    if (!server) return { mode: "local", authenticated: true, setupNeeded: false, username: null };
+    const account = getAccount(db);
+    const token = sessionOf(request.headers.cookie);
+    const authenticated = account !== null && token !== null && checkSession(db, token, Date.now());
+    return {
+      mode: "server",
+      authenticated,
+      setupNeeded: account === null,
+      username: authenticated && account ? account.username : null,
+    };
+  });
+
+  const credentials = (body: unknown) => {
+    const value = (body ?? {}) as Record<string, unknown>;
+    return {
+      username: typeof value.username === "string" ? value.username.trim() : "",
+      password: typeof value.password === "string" ? value.password : "",
+      token: typeof value.token === "string" ? value.token : "",
+    };
+  };
+
+  if (server) {
+    app.post("/api/auth/setup", async (request, reply) => {
+      const now = Date.now();
+      if (getAccount(db)) return reply.code(409).send({ error: "already_set_up" });
+      if (!config.setupToken) return reply.code(403).send({ error: "setup_disabled" });
+      const wait = blocked(request.ip, now);
+      if (wait > 0) return tooMany(reply, wait);
+      const { username, password, token } = credentials(request.body);
+      if (!sameSecret(token, config.setupToken)) {
+        failed(request.ip, now);
+        return reply.code(403).send({ error: "invalid_setup_token" });
+      }
+      if (username.length < 1 || username.length > 64) {
+        return reply.code(400).send({ error: "invalid_username" });
+      }
+      if (password.length < MIN_PASSWORD_LENGTH || password.length > 200) {
+        return reply.code(400).send({ error: "weak_password", minLength: MIN_PASSWORD_LENGTH });
+      }
+      await createAccount(db, username, password, now);
+      startSession(reply, request.headers["user-agent"]);
+      return { ok: true };
+    });
+
+    app.post("/api/auth/login", async (request, reply) => {
+      const now = Date.now();
+      const account = getAccount(db);
+      if (!account) return reply.code(409).send({ error: "setup_needed" });
+      const wait = blocked(request.ip, now);
+      if (wait > 0) return tooMany(reply, wait);
+      const { username, password } = credentials(request.body);
+      // The password is checked even with a wrong name, so both take the same time
+      const passwordOk = await verifyPassword(password, account.passwordHash);
+      if (!passwordOk || !sameSecret(username, account.username)) {
+        failed(request.ip, now);
+        return reply.code(401).send({ error: "invalid_credentials" });
+      }
+      limiter.succeed(request.ip);
+      startSession(reply, request.headers["user-agent"]);
+      return { ok: true };
+    });
+
+    app.post("/api/auth/logout", async (request, reply) => {
+      const token = sessionOf(request.headers.cookie);
+      if (token) deleteSession(db, token);
+      return reply.header("Set-Cookie", cookie("", 0)).send({ ok: true });
+    });
+
+    // Devices: one token per computer that sends data
+    app.get("/api/devices", async (): Promise<DevicesResponse> => ({ devices: listDevices(db) }));
+
+    app.post("/api/devices", async (request, reply) => {
+      const parsed = deviceSchema.safeParse(((request.body ?? {}) as { name?: unknown }).name);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_name", message: parsed.error.issues[0]?.message });
+      }
+      const result = createDevice(db, parsed.data, Date.now());
+      if (!result.ok) return reply.code(409).send({ error: result.error });
+      const response: CreateDeviceResponse = { name: parsed.data, token: result.token };
+      return response;
+    });
+
+    app.delete<{ Params: { name: string } }>("/api/devices/:name", async (request) => ({
+      revoked: revokeDevice(db, request.params.name, Date.now()),
+    }));
+
+    // Agents
+    app.get<{ Querystring: { source?: string } }>("/api/agent/state", async (request, reply) => {
+      const source = request.query.source;
+      if (source !== "gsm" && source !== "anki") return reply.code(400).send({ error: "invalid_source" });
+      return agentState(db, deviceOf.get(request)!, source);
+    });
+
+    app.post("/api/agent/batches", { bodyLimit: AGENT_BODY_LIMIT }, async (request, reply) => {
+      const parsed = connectorBatchSchema.safeParse(request.body);
+      if (!parsed.success) {
+        const issue = parsed.error.issues[0];
+        return reply.code(400).send({
+          error: "invalid_batch",
+          message: issue ? `${issue.path.join(".") || "(body)"}: ${issue.message}` : "invalid",
+        });
+      }
+      const device = deviceOf.get(request)!;
+      const result = applyAgentBatch(db, config, device, parsed.data, Date.now());
+      const response: AgentBatchResponse = { ok: true, device, summary: result.summary ?? null };
+      return response;
+    });
+  }
 
   app.get("/api/health", async (): Promise<HealthResponse> => ({
     status: "ok",
@@ -125,21 +356,36 @@ export async function buildServer({
     now: Date.now(),
   }));
 
+  // One row per source and computer; the hub's own connectors (local mode) are listed even before
+  // their first run
   app.get("/api/sources", async (): Promise<SourcesResponse> => {
-    const states = new Map(listConnectorStates(db).map((state) => [state.source, state]));
-    const names = new Set([...scheduler.sources(), ...states.keys()]);
-    const sources: SourceStatus[] = [...names].sort().map((source) => {
-      const state = states.get(source);
-      return {
-        source,
-        registered: scheduler.has(source),
-        running: scheduler.isRunning(source),
-        lastRunAt: state?.lastRunAt ?? null,
-        lastOkAt: state?.lastOkAt ?? null,
-        lastError: state?.lastError ?? null,
-        lastSummary: state?.lastSummary ?? null,
-      };
-    });
+    const states = listConnectorStates(db);
+    const own = (source: string, device: string) => device === DEFAULT_DEVICE && scheduler.has(source);
+    const sources: SourceStatus[] = states.map((state) => ({
+      source: state.source,
+      device: state.device,
+      registered: own(state.source, state.device),
+      running: own(state.source, state.device) && scheduler.isRunning(state.source),
+      lastRunAt: state.lastRunAt,
+      lastOkAt: state.lastOkAt,
+      lastError: state.lastError,
+      lastSummary: state.lastSummary,
+    }));
+    for (const source of scheduler.sources()) {
+      if (!states.some((state) => state.source === source && state.device === DEFAULT_DEVICE)) {
+        sources.push({
+          source,
+          device: DEFAULT_DEVICE,
+          registered: true,
+          running: scheduler.isRunning(source),
+          lastRunAt: null,
+          lastOkAt: null,
+          lastError: null,
+          lastSummary: null,
+        });
+      }
+    }
+    sources.sort((a, b) => a.source.localeCompare(b.source) || a.device.localeCompare(b.device));
     return { sources };
   });
 

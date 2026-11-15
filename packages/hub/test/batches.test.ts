@@ -174,6 +174,29 @@ describe("GSM batches", () => {
       byDevice("SELECT device, COUNT(*) AS n FROM sessions WHERE source = 'gsm' GROUP BY device"),
     ).toEqual({ principal: 1, notebook: 1 });
   });
+
+  it("counts the same reading once when two computers send the same GSM (a copied database)", () => {
+    const gsm = fakeGsm("game-a", "Beispiel Spiel", gsmLines);
+    const db = freshDb();
+    const options = (device: string) => ({ device, cursor: null, attribution, now: NOW });
+    applyGsm(db, readGsm(where(gsm), knownGsm(db, "principal"), TZ), options("principal"));
+    const sessionsBefore = dump(db, "sessions");
+
+    // The other computer knows those lines are there already: it sends none, and nothing fails
+    const copy = readGsm(where(gsm), knownGsm(db, "notebook"), TZ);
+    expect(copy.lines).toEqual([]);
+    expect(copy.removed).toEqual([]);
+    applyGsm(db, copy, options("notebook"));
+
+    // Even a batch that does carry them keeps them with the computer that sent them first
+    applyGsm(db, readGsm(where(gsm), { lines: new Map(), coverEtags: new Map() }, TZ), options("notebook"));
+    expect(db.prepare("SELECT DISTINCT device FROM raw_gsm_lines").all()).toEqual([{ device: "principal" }]);
+    expect(dump(db, "sessions")).toEqual(sessionsBefore);
+    expect(db.prepare("SELECT device FROM raw_gsm_games ORDER BY device").all()).toEqual([
+      { device: "notebook" },
+      { device: "principal" },
+    ]);
+  });
 });
 
 describe("Anki batches", () => {

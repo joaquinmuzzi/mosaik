@@ -6,8 +6,11 @@ describe("loadConfig", () => {
   it("has a default for everything, listening on 127.0.0.1", () => {
     const config = loadConfig({ LOCALAPPDATA: "C:\\Local", APPDATA: "C:\\Roaming" }, "win32");
     expect(config).toEqual({
+      mode: "local",
       host: "127.0.0.1",
       port: 7300,
+      publicUrl: null,
+      setupToken: null,
       dbPath: join("C:\\Local", "Mosaik", "mosaik.db"),
       gsmDbPath: null,
       ankiConnectUrl: "http://127.0.0.1:8765",
@@ -61,5 +64,44 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ DAY_CUTOFF_HOUR: "24" })).toThrow(/DAY_CUTOFF_HOUR/);
     expect(() => loadConfig({ TZ_NAME: "Nowhere/Land" })).toThrow(/TZ_NAME/);
     expect(() => loadConfig({ ANKICONNECT_URL: "ftp://127.0.0.1" })).toThrow(/ANKICONNECT_URL/);
+  });
+
+  it("in server mode listens everywhere, on the host's PORT, and needs an https PUBLIC_URL", () => {
+    const config = loadConfig({
+      MOSAIK_MODE: "server",
+      PORT: "8080",
+      HUB_PORT: "7400",
+      PUBLIC_URL: "https://mosaik.example.app/some/path",
+      SETUP_TOKEN: "a-long-enough-setup-token",
+    });
+    expect(config).toMatchObject({
+      mode: "server",
+      host: "0.0.0.0",
+      port: 8080,
+      publicUrl: "https://mosaik.example.app",
+      setupToken: "a-long-enough-setup-token",
+    });
+    expect(() => loadConfig({ MOSAIK_MODE: "server" })).toThrow(/PUBLIC_URL: required/);
+    expect(() => loadConfig({ MOSAIK_MODE: "server", PUBLIC_URL: "http://mosaik.example.app" })).toThrow(
+      /must be https/,
+    );
+    // Plain http is fine on this computer, for trying the server mode
+    expect(loadConfig({ MOSAIK_MODE: "server", PUBLIC_URL: "http://localhost:7300" }).publicUrl).toBe(
+      "http://localhost:7300",
+    );
+    expect(() =>
+      loadConfig({ MOSAIK_MODE: "server", PUBLIC_URL: "https://a.app", SETUP_TOKEN: "short" }),
+    ).toThrow(/SETUP_TOKEN/);
+  });
+
+  it("in local mode ignores PORT and the server settings", () => {
+    const config = loadConfig({ PORT: "8080", PUBLIC_URL: "https://a.app", SETUP_TOKEN: "x".repeat(20) });
+    expect(config).toMatchObject({
+      mode: "local",
+      host: "127.0.0.1",
+      port: 7300,
+      publicUrl: null,
+      setupToken: null,
+    });
   });
 });

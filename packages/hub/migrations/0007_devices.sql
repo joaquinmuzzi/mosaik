@@ -3,9 +3,22 @@
 
 -- GSM is different on each computer: its lines, games, breaks and sessions belong to one of them.
 -- (Anki is the same collection everywhere, synced by AnkiWeb, so its tables need no device.)
+-- A line belongs to the first computer that sent it (the same line id from two computers is the same
+-- reading, as when GSM's database is copied over).
 ALTER TABLE raw_gsm_lines ADD COLUMN device TEXT NOT NULL DEFAULT 'principal';
-ALTER TABLE raw_gsm_games ADD COLUMN device TEXT NOT NULL DEFAULT 'principal';
 ALTER TABLE sessions ADD COLUMN device TEXT NOT NULL DEFAULT 'principal';
+
+-- Each computer keeps its own list of games: keyed by computer and game
+CREATE TABLE raw_gsm_games_new (
+  device TEXT NOT NULL DEFAULT 'principal',
+  id TEXT NOT NULL,
+  payload TEXT NOT NULL,           -- the row without its cover image
+  synced_at INTEGER NOT NULL,
+  PRIMARY KEY (device, id)
+) STRICT;
+INSERT INTO raw_gsm_games_new (id, payload, synced_at) SELECT id, payload, synced_at FROM raw_gsm_games;
+DROP TABLE raw_gsm_games;
+ALTER TABLE raw_gsm_games_new RENAME TO raw_gsm_games;
 
 -- Breaks were keyed by their time alone; two computers may mark the same second
 CREATE TABLE raw_gsm_breaks_new (

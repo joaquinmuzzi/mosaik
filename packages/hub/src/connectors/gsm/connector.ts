@@ -40,9 +40,16 @@ export interface GsmConnectorOptions {
   timeZone: string;
 }
 
-/** What the database already has of one computer's GSM, so a read only fetches what changed. */
+/**
+ * What the database already has, so a read of one computer's GSM only fetches what changed. Lines of
+ * every computer are listed (a line another computer already sent is not sent again); `mine` marks this
+ * computer's, the only ones it can find deleted.
+ */
 export interface GsmKnown {
-  lines: Map<string, { version: number; removed: boolean; gameId: string | null; timestamp: number }>;
+  lines: Map<
+    string,
+    { version: number; removed: boolean; gameId: string | null; timestamp: number; mine: boolean }
+  >;
   /** Game id → hash of its stored GSM cover. */
   coverEtags: Map<string, string>;
 }
@@ -51,8 +58,8 @@ export function knownGsm(db: Database, device: string = DEFAULT_DEVICE): GsmKnow
   const lines: GsmKnown["lines"] = new Map();
   for (const row of db
     .prepare(
-      `SELECT id, last_modified, removed_at IS NOT NULL AS removed, game_id, timestamp
-       FROM raw_gsm_lines WHERE device = ?`,
+      `SELECT id, last_modified, removed_at IS NOT NULL AS removed, game_id, timestamp, device = ? AS mine
+       FROM raw_gsm_lines`,
     )
     .all(device) as {
     id: string;
@@ -60,12 +67,14 @@ export function knownGsm(db: Database, device: string = DEFAULT_DEVICE): GsmKnow
     removed: number;
     game_id: string | null;
     timestamp: number;
+    mine: number;
   }[]) {
     lines.set(row.id, {
       version: row.last_modified,
       removed: row.removed === 1,
       gameId: row.game_id,
       timestamp: row.timestamp,
+      mine: row.mine === 1,
     });
   }
   const coverEtags = new Map<string, string>();
@@ -94,10 +103,11 @@ export function readGsm(location: GsmLocation, known: GsmKnown, timeZone: string
     gsm.close();
   }
 
-  // Lines gone from GSM: deleted, unless their day was archived (GSM days start at local midnight)
+  // This computer's lines gone from GSM: deleted, unless their day was archived (GSM days start at local
+  // midnight)
   const removed: string[] = [];
   for (const [id, line] of known.lines) {
-    if (line.removed || snapshot.lineVersions.has(id)) continue;
+    if (!line.mine || line.removed || snapshot.lineVersions.has(id)) continue;
     const day = dayKey(line.timestamp * 1000, timeZone, 0);
     if (!snapshot.archivedDays.has(`${line.gameId ?? ""}|${day}`)) removed.push(id);
   }
@@ -162,7 +172,7 @@ export function applyGsm(
        ON CONFLICT (id) DO UPDATE SET game_id = excluded.game_id, game_name = excluded.game_name,
          line_text = excluded.line_text, timestamp = excluded.timestamp, language = excluded.language,
          note_ids = excluded.note_ids, last_modified = excluded.last_modified, payload = excluded.payload,
-         synced_at = excluded.synced_at, removed_at = NULL, device = excluded.device`,
+         synced_at = excluded.synced_at, removed_at = NULL`,
     );
     for (const line of batch.lines) {
       upsertLine.run(

@@ -2,8 +2,10 @@
   /** The dashboard: a quiet sidebar and the pages, on a neutral graphite ramp. */
   import type { HealthResponse } from "@mosaik/shared";
   import { onMount } from "svelte";
-  import { getHealth } from "./lib/api";
+  import { getHealth, logout } from "./lib/api";
+  import { auth, refreshAuth } from "./lib/auth.svelte";
   import { router } from "./lib/router.svelte";
+  import Login from "./pages/Login.svelte";
   import Content from "./pages/Content.svelte";
   import Day from "./pages/Day.svelte";
   import Search from "./pages/Search.svelte";
@@ -15,6 +17,7 @@
 
   let health = $state<HealthResponse | null>(null);
   onMount(() => {
+    void refreshAuth();
     const check = () =>
       getHealth()
         .then((result) => (health = result))
@@ -55,49 +58,70 @@
 
   const active = (page: string) =>
     router.route.page === page || (page === "contents" && router.route.page === "content");
+
+  const locked = $derived(auth.status?.mode === "server" && !auth.status.authenticated);
+
+  async function signOut() {
+    await logout().catch(() => undefined);
+    await refreshAuth();
+  }
 </script>
 
-<div class="k-layout">
-  <aside class="k-side">
-    <div class="k-side-inner">
-      <a class="k-brand" href="#/">
-        <span class="k-tiles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-        Mosaik
-      </a>
-      <nav aria-label="Secciones">
-        {#each links as link (link.href)}
-          <a href={link.href} aria-label={link.label} aria-current={active(link.page) ? "page" : undefined}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={link.icon} /></svg>
-            <span>{link.label}</span>
-          </a>
-        {/each}
-      </nav>
-      <p class="k-status" class:down={!health}>
-        <span class="tile" aria-hidden="true"></span>{health ? "Hub conectado" : "Hub sin conexión"}
-      </p>
-    </div>
-  </aside>
+{#if !auth.checked}
+  <p class="muted k-boot">Cargando…</p>
+{:else if locked}
+  <Login setup={auth.status?.setupNeeded ?? false} />
+{:else}
+  <div class="k-layout">
+    <aside class="k-side">
+      <div class="k-side-inner">
+        <a class="k-brand" href="#/">
+          <span class="k-tiles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          Mosaik
+        </a>
+        <nav aria-label="Secciones">
+          {#each links as link (link.href)}
+            <a href={link.href} aria-label={link.label} aria-current={active(link.page) ? "page" : undefined}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d={link.icon} /></svg>
+              <span>{link.label}</span>
+            </a>
+          {/each}
+        </nav>
+        <div class="k-foot">
+          {#if auth.status?.mode === "server"}
+            <div class="k-user">
+              <span>{auth.status.username}</span>
+              <button type="button" onclick={signOut}>Cerrar sesión</button>
+            </div>
+          {/if}
+          <p class="k-status" class:down={!health}>
+            <span class="tile" aria-hidden="true"></span>{health ? "Hub conectado" : "Hub sin conexión"}
+          </p>
+        </div>
+      </div>
+    </aside>
 
-  <main class="k-main">
-    {#if router.route.page === "home"}
-      <Home />
-    {:else if router.route.page === "contents"}
-      <Contents />
-    {:else if router.route.page === "anki"}
-      <Anki />
-    {:else if router.route.page === "stats"}
-      <Stats />
-    {:else if router.route.page === "content"}
-      <Content id={router.route.id} />
-    {:else if router.route.page === "day"}
-      <Day day={router.route.day} />
-    {:else if router.route.page === "search"}
-      <Search query={router.route.query} />
-    {:else}
-      <Sources />
-    {/if}
-  </main>
-</div>
+    <main class="k-main">
+      {#if router.route.page === "home"}
+        <Home />
+      {:else if router.route.page === "contents"}
+        <Contents />
+      {:else if router.route.page === "anki"}
+        <Anki />
+      {:else if router.route.page === "stats"}
+        <Stats />
+      {:else if router.route.page === "content"}
+        <Content id={router.route.id} />
+      {:else if router.route.page === "day"}
+        <Day day={router.route.day} />
+      {:else if router.route.page === "search"}
+        <Search query={router.route.query} />
+      {:else}
+        <Sources />
+      {/if}
+    </main>
+  </div>
+{/if}
 
 <style>
   .k-layout {
@@ -204,8 +228,43 @@
     stroke-linecap: round;
   }
 
-  .k-status {
+  .k-boot {
+    padding: 32px;
+  }
+
+  .k-foot {
     margin: auto 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .k-user {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 8px;
+    color: var(--secondary);
+    font-size: 0.9286rem;
+  }
+
+  .k-user button {
+    font: inherit;
+    font-size: 0.8571rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .k-user button:hover {
+    color: var(--text);
+  }
+
+  .k-status {
+    margin: 0;
     padding: 0 8px;
     display: flex;
     align-items: center;
@@ -260,8 +319,10 @@
       display: none;
     }
 
-    .k-status {
+    .k-foot {
       margin: 0 0 0 auto;
+      flex-direction: row;
+      align-items: center;
     }
 
     .k-main {

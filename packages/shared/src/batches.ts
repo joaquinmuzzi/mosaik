@@ -125,3 +125,48 @@ export type GsmSettings = z.infer<typeof gsmSettingsSchema>;
 
 export const connectorBatchSchema = z.discriminatedUnion("source", [ankiBatchSchema, gsmBatchSchema]);
 export type ConnectorBatch = z.infer<typeof connectorBatchSchema>;
+
+// What the server already has of a device, so its agent only reads what changed
+
+/**
+ * `[id, version, removed, gameId, timestamp, mine]` per line (of every computer; `mine` marks the
+ * asking one's), and `[gameId, etag]` per GSM cover.
+ */
+export const gsmKnownSchema = z.object({
+  lines: z.array(
+    z.tuple([z.string(), z.number(), z.boolean(), z.string().nullable(), z.number(), z.boolean()]),
+  ),
+  coverEtags: z.array(z.tuple([z.string(), z.string()])),
+});
+
+/** `[id, mod, deck, removed]` per note and per card. */
+export const ankiKnownSchema = z.object({
+  notes: z.array(z.tuple([z.number().int(), z.number().int(), z.string(), z.boolean()])),
+  cards: z.array(z.tuple([z.number().int(), z.number().int(), z.string(), z.boolean()])),
+});
+
+/** `GET /api/agent/state?source=…`: the device's cursor and what the server already has. */
+export const agentStateSchema = z.discriminatedUnion("source", [
+  z.object({
+    source: z.literal("gsm"),
+    device: z.string(),
+    cursor: z.json().nullable(),
+    known: gsmKnownSchema,
+  }),
+  z.object({
+    source: z.literal("anki"),
+    device: z.string(),
+    cursor: z.json().nullable(),
+    known: ankiKnownSchema,
+  }),
+]);
+export type GsmKnownJson = z.infer<typeof gsmKnownSchema>;
+export type AnkiKnownJson = z.infer<typeof ankiKnownSchema>;
+export type AgentState = z.infer<typeof agentStateSchema>;
+
+/** `POST /api/agent/batches`: what applying a batch did. */
+export interface AgentBatchResponse {
+  ok: true;
+  device: string;
+  summary: Record<string, unknown> | null;
+}

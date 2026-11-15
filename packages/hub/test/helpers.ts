@@ -16,8 +16,11 @@ export function tempDir(): string {
 
 export function testConfig(overrides: Partial<Config> = {}): Config {
   return {
+    mode: "local",
     host: "127.0.0.1",
     port: 7300,
+    publicUrl: null,
+    setupToken: null,
     dbPath: ":memory:",
     gsmDbPath: null,
     ankiConnectUrl: "http://127.0.0.1:8765",

@@ -36,10 +36,12 @@ Los detalles (columnas, algoritmos, endpoints) están en `docs/plan.md`, secció
 1. **Nunca escribir en las fuentes.** `gsm.db` se abre en modo solo lectura (`file:...?mode=ro`, sin copiar el
    `.db` suelto: usa WAL). A Anki solo se le hacen acciones de lectura de AnkiConnect. Nada de `insertReviews`,
    `updateNoteFields`, etc.
-2. **Todo local.** El servidor escucha solo en `127.0.0.1`. Ningún dato sale de la máquina. Sin telemetría.
-   Excepciones, siempre elegidas por el usuario: `YOUTUBE_THUMBNAILS=1` (apagado por defecto) pide las
-   miniaturas de los videos a YouTube, una vez por video; y el botón "Buscar en Steam" de la ficha de un
-   contenido le manda a Steam el texto buscado, solo cuando se toca.
+2. **Todo local.** En modo `local` (el de siempre, por defecto) el servidor escucha solo en `127.0.0.1` y
+   ningún dato sale de la máquina. Sin telemetría. Excepciones, siempre elegidas por el usuario:
+   `YOUTUBE_THUMBNAILS=1` (apagado por defecto) pide las miniaturas de los videos a YouTube, una vez por video;
+   el botón "Buscar en Steam" de la ficha de un contenido le manda a Steam el texto buscado, solo cuando se toca;
+   y el modo `server` (`MOSAIK_MODE=server`, ver `docs/plan-servidor.md`), que existe solo si el usuario lo
+   configura y recibe datos únicamente de sus propias computadoras, con login y tokens por dispositivo.
 3. **Crudo primero.** Cada conector guarda los datos de su fuente tal como llegan (con sus IDs originales) en
    tablas `raw_*`. El modelo común y las métricas se derivan de ahí y se pueden recalcular.
 4. **Idempotencia.** Correr un conector dos veces no duplica nada: upserts por ID de origen y un cursor por

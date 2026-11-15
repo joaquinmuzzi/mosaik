@@ -13,6 +13,8 @@ export interface HealthResponse {
 
 export interface SourceStatus {
   source: string;
+  /** The computer this state is of: `principal` is the hub's own, others are agents (server mode). */
+  device: string;
   /** Whether a connector for this source is registered in the running hub. */
   registered: boolean;
   running: boolean;
@@ -275,4 +277,32 @@ export interface StatsResponse {
   /** From the first day with anything (immersion, reviews or mined cards) to today, oldest first. */
   days: DaySummary[];
   highlights: Highlights;
+}
+
+// Server mode: login and devices.
+
+export interface AuthStatusResponse {
+  mode: "local" | "server";
+  /** Always true in local mode, which has no login. */
+  authenticated: boolean;
+  /** Server mode with no account yet: the setup token creates it. */
+  setupNeeded: boolean;
+  username: string | null;
+}
+
+export interface DeviceInfo {
+  name: string;
+  createdAt: number;
+  lastSeenAt: number | null;
+  revokedAt: number | null;
+}
+
+export interface DevicesResponse {
+  devices: DeviceInfo[];
+}
+
+/** The token is shown this once: the server only keeps its hash. */
+export interface CreateDeviceResponse {
+  name: string;
+  token: string;
 }
