@@ -25,5 +25,5 @@ data/
 .DS_Store
 Thumbs.db
 
-# Design comparison screenshots show real data
-docs/designs/*.png
+# Screenshots of the dashboard show real data
+docs/screenshots/

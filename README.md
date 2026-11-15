@@ -76,10 +76,10 @@ npm start
 
 y abrir <http://127.0.0.1:7300>.
 
-## Diseños
+## Capturas
 
-Hay varias propuestas de interfaz para comparar: menú **Diseño** abajo a la derecha, o `?design=<nombre>`.
-Ver [`docs/designs/README.md`](docs/designs/README.md) (las capturas se generan con `npm run screenshots`).
+`npm run screenshots` (con el dashboard corriendo) guarda una captura de cada página en `docs/screenshots/`.
+Muestran tus datos reales, así que esa carpeta está en `.gitignore`.
 
 ## Comandos
 

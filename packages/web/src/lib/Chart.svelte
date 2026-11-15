@@ -4,6 +4,7 @@
     CalendarComponent,
     GridComponent,
     LegendComponent,
+    TitleComponent,
     TooltipComponent,
     VisualMapComponent,
   } from "echarts/components";
@@ -18,6 +19,7 @@
     CalendarComponent,
     GridComponent,
     LegendComponent,
+    TitleComponent,
     TooltipComponent,
     VisualMapComponent,
     SVGRenderer,

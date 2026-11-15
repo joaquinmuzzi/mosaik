@@ -1,100 +1,146 @@
 <script lang="ts">
-  import type { ContentSummary } from "@mosaik/shared";
-  import { onMount } from "svelte";
   import { getContents } from "../lib/api";
-  import { KIND_LABELS, dayShort, duration, number } from "../lib/format";
+  import Cover from "../lib/Cover.svelte";
+  import { dayShort, duration, number } from "../lib/format";
+  import Info from "../lib/Info.svelte";
+  import { load } from "../lib/load.svelte";
+  import { NOTES } from "../lib/notes";
   import { hrefContent } from "../lib/router.svelte";
+  import Toggle from "../lib/Toggle.svelte";
 
-  let contents = $state<ContentSummary[] | null>(null);
-  let error = $state<string | null>(null);
+  const contents = load(getContents);
   let kind = $state<"all" | "game" | "video">("all");
-
-  onMount(() => {
-    getContents()
-      .then((result) => (contents = result.contents))
-      .catch((cause: unknown) => (error = cause instanceof Error ? cause.message : String(cause)));
-  });
-
-  const shown = $derived((contents ?? []).filter((content) => kind === "all" || content.kind === kind));
-  const swatch = (content: ContentSummary) =>
-    content.kind === "video" ? "var(--series-youtube)" : "var(--series-gsm)";
+  const shown = $derived((contents.data?.contents ?? []).filter((c) => kind === "all" || c.kind === kind));
 </script>
 
-<section class="card" aria-labelledby="contents-title">
-  <h2 id="contents-title">Contenido</h2>
-  <p class="note">
-    Lo que leíste en GameSentenceMiner y lo que miraste en YouTube (según Deuchan), con el tiempo, las
-    sesiones y las tarjetas que minaste de cada uno. Ordenado por la última vez.
-  </p>
-  <div class="filters" role="group" aria-label="Tipo de contenido">
-    {#each [["all", "Todo"], ["game", "Juegos"], ["video", "Videos"]] as const as [value, label] (value)}
-      <button type="button" aria-pressed={kind === value} onclick={() => (kind = value)}>{label}</button>
-    {/each}
-  </div>
+<header class="k-head">
+  <h1>Biblioteca</h1>
+  <Info text={`${NOTES.gsmTime} ${NOTES.videoTime}`} label="Cómo se cuenta el tiempo" />
+  <span class="k-spacer"></span>
+  <Toggle
+    label="Tipo de contenido"
+    options={[
+      ["all", "Todo"],
+      ["game", "Juegos"],
+      ["video", "Videos"],
+    ] as const}
+    bind:value={kind}
+  />
+</header>
 
-  {#if error}
-    <p class="error">No se pudo leer el contenido: {error}</p>
-  {:else if !contents}
-    <p class="muted">Cargando…</p>
-  {:else if shown.length === 0}
-    <p class="muted">Nada todavía.</p>
-  {:else}
-    <table>
-      <thead>
-        <tr>
-          <th scope="col">Título</th>
-          <th scope="col">Tipo</th>
-          <th scope="col" class="num">Tiempo</th>
-          <th scope="col" class="num">Tarjetas</th>
-          <th scope="col" class="num">Última vez</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each shown as content (content.id)}
-          <tr>
-            <td>
-              <span class="swatch" style:background={swatch(content)} aria-hidden="true"></span>
-              <a href={hrefContent(content.id)}>{content.title ?? content.id}</a>
-            </td>
-            <td>{KIND_LABELS[content.kind] ?? content.kind}</td>
-            <td class="num">{duration(content.seconds)}</td>
-            <td class="num">{content.cardsMined > 0 ? number.format(content.cardsMined) : "—"}</td>
-            <td class="num">{content.lastDay ? dayShort(content.lastDay) : "—"}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  {/if}
-</section>
+{#if contents.error}
+  <p class="error">No se pudo leer la biblioteca: {contents.error}</p>
+{:else if !contents.data}
+  <p class="muted">Cargando…</p>
+{:else if shown.length === 0}
+  <p class="muted">Nada todavía.</p>
+{:else}
+  <ul class="k-grid">
+    {#each shown as content (content.id)}
+      <li>
+        <a class="k-tile" href={hrefContent(content.id)}>
+          <div class="k-cover"><Cover {content} badge /></div>
+          <div class="k-info">
+            <span class="k-title">{content.title ?? content.id}</span>
+            <span class="k-meta">
+              <b>{duration(content.seconds)}</b>
+              {#if content.cardsMined > 0}· {number.format(content.cardsMined)} tarjetas{/if}
+            </span>
+            {#if content.lastDay}<span class="k-last">{dayShort(content.lastDay)}</span>{/if}
+          </div>
+        </a>
+      </li>
+    {/each}
+  </ul>
+{/if}
 
 <style>
-  .filters {
+  .k-head {
     display: flex;
-    gap: 6px;
-    margin-bottom: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
   }
 
-  .filters button {
-    font: inherit;
-    padding: 4px 12px;
-    border-radius: 999px;
+  h1 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+
+  .k-spacer {
+    flex: 1;
+  }
+
+  .k-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+  }
+
+  .k-tile {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 12px;
+    background: var(--surface);
     border: 1px solid var(--border);
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-  }
-
-  .filters button[aria-pressed="true"] {
-    background: var(--bg);
     color: var(--text);
-    border-color: var(--muted);
+    text-decoration: none;
+    transition:
+      transform 0.15s ease-in-out,
+      border-color 0.15s ease-in-out;
   }
 
-  .swatch {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
-    margin-right: 6px;
+  .k-tile:hover,
+  .k-tile:focus-visible {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+  }
+
+  .k-cover {
+    aspect-ratio: 3 / 4;
+  }
+
+  .k-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px 12px;
+  }
+
+  .k-title {
+    font-weight: 600;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .k-meta,
+  .k-last {
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+
+  .k-meta b {
+    color: var(--text);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .k-tile {
+      transition: none;
+    }
+
+    .k-tile:hover,
+    .k-tile:focus-visible {
+      transform: none;
+    }
   }
 </style>

@@ -1,49 +1,34 @@
-/* Tokens. Series colors follow the source in every chart: GSM blue, YouTube orange, Refold aqua,
-   cards without origin neutral gray, Anki reviews blue-gray. Validated (light and dark) with the
-   dataviz palette checks; the light aqua is under 3:1, so it always comes with a label or a table. */
+/* Tokens (the Kechimochi-inspired design): dark, compact cards, one vivid color per source, validated
+   with the dataviz palette checks on the dark surface (green GSM, fuchsia YouTube, blue Refold, amber
+   mined). The UI accent is violet, so it never stands for a source. */
 :root {
-  --bg: #f7f7f5;
-  --surface: #fcfcfb;
-  --border: #e3e3df;
-  --grid: #e3e3df;
-  --text: #1d1d1b;
-  --muted: #52514e;
-  --ok: #0ca30c;
-  --danger: #d03b3b;
-  --warning: #b35c00;
-  --series-gsm: #2a78d6;
-  --series-youtube: #eb6834;
-  --series-refold: #1baf7a;
-  --series-unknown: #8a8984;
-  --series-anki: #256abf;
-  color-scheme: light;
+  color-scheme: dark;
+  --bg: #16131c;
+  --surface: #221d2b;
+  --surface-2: #2c2537;
+  --border: #3b3348;
+  --grid: #3b3348;
+  --text: #f5effb;
+  --muted: #bcb0cc;
+  --accent: #9085e9;
+  --on-accent: #120d1a;
+  --ok: #3fbf3f;
+  --danger: #ef7676;
+  --warning: #e0a030;
+  --series-gsm: #0ca30c;
+  --series-youtube: #d55181;
+  --series-refold: #3987e5;
+  --series-mined: #c98500;
+  --series-unknown: #8a8394;
+  --series-anki: #3987e5;
+  --toggle-radius: 999px;
   font-family:
+    "Segoe UI",
     system-ui,
     -apple-system,
-    "Segoe UI",
     Roboto,
     sans-serif;
   line-height: 1.5;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #121211;
-    --surface: #1a1a19;
-    --border: #33332f;
-    --grid: #33332f;
-    --text: #f0efec;
-    --muted: #c3c2b7;
-    --ok: #0ca30c;
-    --danger: #e66767;
-    --warning: #ffa94d;
-    --series-gsm: #3987e5;
-    --series-youtube: #d95926;
-    --series-refold: #199e70;
-    --series-unknown: #8a8984;
-    --series-anki: #5598e7;
-    color-scheme: dark;
-  }
 }
 
 body {
@@ -53,7 +38,7 @@ body {
 }
 
 a {
-  color: var(--series-gsm);
+  color: var(--accent);
 }
 
 code {
@@ -65,6 +50,7 @@ code {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
   padding: 16px 20px;
   margin-bottom: 16px;
 }
