@@ -154,6 +154,8 @@ export interface GsmSnapshot {
   /** Full rows of the lines asked for. */
   lines: GsmLineRow[];
   games: GsmGameRow[];
+  /** Game id → its cover image as GSM stores it, for the games that have one. */
+  covers: Map<string, string>;
   /** Reading breaks, epoch seconds. */
   breaks: number[];
   /** `game_id|date` of the days GSM archived (their lines leave `game_lines` but still count). */
@@ -201,9 +203,14 @@ export function readGsmSnapshot(
           .prepare("SELECT * FROM game_lines WHERE id IN (SELECT value FROM json_each(?))")
           .all(JSON.stringify(ids)) as unknown as GsmLineRow[]);
 
+  // The cover image (base64, possibly large) is kept apart from the game's data
+  const covers = new Map<string, string>();
   const games = hasTable(db, "games")
     ? (db.prepare("SELECT * FROM games ORDER BY id").all() as unknown as GsmGameRow[]).map(
-        ({ image: _image, ...game }) => game as GsmGameRow,
+        ({ image, ...game }) => {
+          if (typeof image === "string" && image.trim() !== "") covers.set(game.id, image);
+          return game as GsmGameRow;
+        },
       )
     : [];
   const breaks = hasTable(db, "stats_reading_breaks")
@@ -222,5 +229,18 @@ export function readGsmSnapshot(
         ).map((row) => `${row.game_id}|${row.date}`)
       : [],
   );
-  return { lineVersions, lines, games, breaks, archivedDays };
+  return { lineVersions, lines, games, covers, breaks, archivedDays };
+}
+
+/**
+ * A cover image as GSM stores it (a `data:` URL, or bare base64) turned into bytes and a media type.
+ * Returns null for anything that is not an image.
+ */
+export function decodeCover(image: string): { mime: string; data: Uint8Array } | null {
+  const match = /^data:(image\/[a-z0-9.+-]+);base64,(.*)$/is.exec(image.trim());
+  const mime = match ? match[1]!.toLowerCase() : "image/png";
+  const base64 = (match ? match[2]! : image).replace(/\s+/g, "");
+  if (!/^[A-Za-z0-9+/]+=*$/.test(base64)) return null;
+  const data = Buffer.from(base64, "base64");
+  return data.length > 0 ? { mime, data: new Uint8Array(data) } : null;
 }

@@ -21,6 +21,7 @@ import type {
   SourcesResponse,
 } from "@mosaik/shared";
 import { contentDetail, listContents, searchLines } from "./api/contents.ts";
+import { getCover } from "./api/covers.ts";
 import { ankiStats, dayDetail, isDay, overview } from "./api/dashboard.ts";
 import Fastify, { type FastifyInstance, type FastifyServerOptions, LogController } from "fastify";
 import type { Config } from "./config.ts";
@@ -136,6 +137,7 @@ export async function buildServer({
     timeZone: config.timeZone,
     cutoffHour: config.dayCutoffHour,
     targetLanguage: config.targetLanguage,
+    youtubeThumbnails: config.youtubeThumbnails,
   };
 
   app.get<{ Querystring: { days?: string } }>("/api/overview", async (request): Promise<OverviewResponse> => {
@@ -153,6 +155,15 @@ export async function buildServer({
   app.get("/api/anki", async (): Promise<AnkiStatsResponse> => ankiStats(db, dashboard));
 
   app.get("/api/contents", async () => listContents(db, dashboard));
+
+  app.get<{ Params: { id: string } }>("/api/contents/:id/cover", async (request, reply) => {
+    const cover = await getCover(db, request.params.id, { youtubeThumbnails: config.youtubeThumbnails });
+    if (!cover) return reply.code(404).send({ error: "not_found", message: "No cover" });
+    return reply
+      .header("Content-Type", cover.mime)
+      .header("Cache-Control", "private, max-age=86400")
+      .send(Buffer.from(cover.data));
+  });
 
   app.get<{ Params: { id: string } }>("/api/contents/:id", async (request, reply) => {
     const detail = contentDetail(db, dashboard, request.params.id);

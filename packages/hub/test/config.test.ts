@@ -18,6 +18,7 @@ describe("loadConfig", () => {
       syncIntervalMinutes: 5,
       logLevel: "info",
       targetLanguage: "de",
+      youtubeThumbnails: false,
     });
   });
 

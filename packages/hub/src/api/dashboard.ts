@@ -22,6 +22,8 @@ export interface DashboardOptions {
   timeZone: string;
   cutoffHour: number;
   targetLanguage: string;
+  /** Whether YouTube thumbnails may be fetched (YOUTUBE_THUMBNAILS). */
+  youtubeThumbnails?: boolean;
 }
 
 /** An interval of 21 days or more makes a card mature, as in Anki's statistics. */

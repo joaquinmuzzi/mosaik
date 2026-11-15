@@ -77,6 +77,11 @@ function summarize(
   const day = (ts: number) => dayKey(ts, options.timeZone, options.cutoffHour);
   const videos = videoTotals(db);
   const mined = minedCounts(db);
+  const stored = new Set(
+    (db.prepare("SELECT content_id FROM covers").all() as { content_id: string }[]).map(
+      (row) => row.content_id,
+    ),
+  );
   const sessions = new Map<
     string,
     { seconds: number; count: number; chars: number; first: number; last: number }
@@ -118,6 +123,10 @@ function summarize(
       cardsMined: mined.get(row.id) ?? 0,
       firstDay: days[0] ?? null,
       lastDay: days.at(-1) ?? null,
+      cover:
+        stored.has(row.id) || (row.kind === "video" && options.youtubeThumbnails === true)
+          ? `/api/contents/${encodeURIComponent(row.id)}/cover`
+          : null,
     };
   });
 }

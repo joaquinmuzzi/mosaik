@@ -94,6 +94,7 @@ describe("listContents", () => {
         cardsMined: 1,
         firstDay: "2026-11-13",
         lastDay: "2026-11-13",
+        cover: null,
       },
       {
         id: "yt:aaaaaaaaaaa",
@@ -107,6 +108,7 @@ describe("listContents", () => {
         cardsMined: 1,
         firstDay: "2026-11-11",
         lastDay: "2026-11-12",
+        cover: null,
       },
       // The game read only in Japanese is not listed
     ]);

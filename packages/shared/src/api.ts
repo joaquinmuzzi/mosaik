@@ -153,6 +153,8 @@ export interface ContentSummary {
   cardsMined: number;
   firstDay: string | null;
   lastDay: string | null;
+  /** URL of the cover image (GSM's game image, or a YouTube thumbnail if turned on), or null. */
+  cover: string | null;
 }
 
 export interface ContentsResponse {

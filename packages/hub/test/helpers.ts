@@ -28,6 +28,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     syncIntervalMinutes: 5,
     logLevel: "silent",
     targetLanguage: "de",
+    youtubeThumbnails: false,
     ...overrides,
   };
 }
