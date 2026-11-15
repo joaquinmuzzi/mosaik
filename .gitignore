@@ -24,3 +24,6 @@ data/
 *.log
 .DS_Store
 Thumbs.db
+
+# Design comparison screenshots show real data
+docs/designs/*.png

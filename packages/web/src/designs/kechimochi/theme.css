@@ -1,0 +1,37 @@
+/* Kechimochi: dark, compact cards, vivid colors per source (validated with the dataviz checks on
+   the dark surface: green, fuchsia, blue, amber). The UI accent is violet, so it never stands for a
+   source. */
+:root[data-design="kechimochi"] {
+  color-scheme: dark;
+  --bg: #16131c;
+  --surface: #221d2b;
+  --surface-2: #2c2537;
+  --border: #3b3348;
+  --grid: #3b3348;
+  --text: #f5effb;
+  --muted: #bcb0cc;
+  --accent: #9085e9;
+  --on-accent: #120d1a;
+  --ok: #3fbf3f;
+  --danger: #ef7676;
+  --warning: #e0a030;
+  --series-gsm: #0ca30c;
+  --series-youtube: #d55181;
+  --series-refold: #3987e5;
+  --series-mined: #c98500;
+  --series-unknown: #8a8394;
+  --series-anki: #3987e5;
+  --toggle-radius: 999px;
+  font-family:
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    Roboto,
+    sans-serif;
+}
+
+:root[data-design="kechimochi"] .card {
+  border-radius: 12px;
+  border-color: var(--border);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
+}

@@ -1,15 +1,15 @@
 <script lang="ts">
   import type { HealthResponse } from "@mosaik/shared";
   import { onMount } from "svelte";
-  import { getHealth } from "./lib/api";
-  import { router } from "./lib/router.svelte";
-  import Anki from "./pages/Anki.svelte";
-  import Content from "./pages/Content.svelte";
-  import Contents from "./pages/Contents.svelte";
-  import Day from "./pages/Day.svelte";
-  import Home from "./pages/Home.svelte";
-  import Search from "./pages/Search.svelte";
-  import Sources from "./pages/Sources.svelte";
+  import { getHealth } from "../../lib/api";
+  import { router } from "../../lib/router.svelte";
+  import Anki from "../../pages/Anki.svelte";
+  import Content from "../../pages/Content.svelte";
+  import Contents from "../../pages/Contents.svelte";
+  import Day from "../../pages/Day.svelte";
+  import Home from "../../pages/Home.svelte";
+  import Search from "../../pages/Search.svelte";
+  import Sources from "../../pages/Sources.svelte";
 
   let health = $state<HealthResponse | null>(null);
   let down = $state(false);

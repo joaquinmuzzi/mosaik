@@ -1,10 +1,27 @@
 <script lang="ts" module>
-  import { BarChart, LineChart } from "echarts/charts";
-  import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
+  import { BarChart, HeatmapChart, LineChart, PieChart } from "echarts/charts";
+  import {
+    CalendarComponent,
+    GridComponent,
+    LegendComponent,
+    TooltipComponent,
+    VisualMapComponent,
+  } from "echarts/components";
   import * as echarts from "echarts/core";
   import { SVGRenderer } from "echarts/renderers";
 
-  echarts.use([BarChart, LineChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
+  echarts.use([
+    BarChart,
+    LineChart,
+    PieChart,
+    HeatmapChart,
+    CalendarComponent,
+    GridComponent,
+    LegendComponent,
+    TooltipComponent,
+    VisualMapComponent,
+    SVGRenderer,
+  ]);
 
   /** The colors of the current theme, read from the CSS tokens so light and dark stay in one place. */
   export interface Theme {
@@ -13,6 +30,8 @@
     refold: string;
     unknown: string;
     anki: string;
+    mined: string;
+    accent: string;
     text: string;
     muted: string;
     grid: string;
@@ -28,6 +47,8 @@
       refold: token("--series-refold"),
       unknown: token("--series-unknown"),
       anki: token("--series-anki"),
+      mined: token("--series-mined") || token("--series-youtube"),
+      accent: token("--accent") || token("--series-gsm"),
       text: token("--text"),
       muted: token("--muted"),
       grid: token("--grid"),
