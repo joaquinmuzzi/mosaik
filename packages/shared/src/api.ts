@@ -236,3 +236,43 @@ export interface SearchResponse {
   /** True when there were more hits than returned. */
   more: boolean;
 }
+
+// Statistics over the whole history.
+
+/** The content that leads one highlight, and by how much (seconds, sessions, characters or cards). */
+export interface HighlightContent {
+  id: string;
+  title: string | null;
+  kind: string;
+  value: number;
+}
+
+/** Days in a row, first and last day included. */
+export interface StreakRecord {
+  days: number;
+  from: string;
+  to: string;
+}
+
+export interface Highlights {
+  mostTime: HighlightContent | null;
+  mostSessions: HighlightContent | null;
+  /** GSM only: Deuchan does not count characters. */
+  mostCharacters: HighlightContent | null;
+  mostMined: HighlightContent | null;
+  /** The day with most immersion (GSM + Deuchan). */
+  biggestDay: { day: string; seconds: number } | null;
+  /** The longest run of days with any immersion. */
+  longestStreak: StreakRecord | null;
+  /** The longest run of days with the same content. */
+  longestTitleStreak: (StreakRecord & { id: string; title: string | null; kind: string }) | null;
+}
+
+export interface StatsResponse {
+  today: string;
+  cutoffHour: number;
+  timeZone: string;
+  /** From the first day with anything (immersion, reviews or mined cards) to today, oldest first. */
+  days: DaySummary[];
+  highlights: Highlights;
+}

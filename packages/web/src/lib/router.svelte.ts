@@ -1,12 +1,13 @@
 /**
  * A hash router: `#/`, `#/dia/2026-11-14`, `#/anki`, `#/contenido`, `#/contenido/<id>`,
- * `#/buscar?q=…`, `#/fuentes`. Works from any static server.
+ * `#/buscar?q=…`, `#/estadisticas`, `#/fuentes`. Works from any static server.
  */
 
 export type Route =
   | { page: "home" }
   | { page: "day"; day: string }
   | { page: "anki" }
+  | { page: "stats" }
   | { page: "contents" }
   | { page: "content"; id: string }
   | { page: "search"; query: string }
@@ -21,6 +22,7 @@ function parse(hash: string): Route {
   if (path === "/contenido") return { page: "contents" };
   if (path === "/buscar") return { page: "search", query: new URLSearchParams(search).get("q") ?? "" };
   if (path === "/anki") return { page: "anki" };
+  if (path === "/estadisticas") return { page: "stats" };
   if (path === "/fuentes") return { page: "sources" };
   return { page: "home" };
 }

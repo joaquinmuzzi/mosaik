@@ -46,7 +46,7 @@ export function mondayOf(day: string): string {
 
 export const isDay = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && addDays(value, 0) === value;
 
-interface Totals {
+export interface Totals {
   gsm: Map<string, number>;
   deuchan: Map<string, number>;
   reviews: Map<string, { count: number; seconds: number }>;
@@ -58,7 +58,10 @@ function add(map: Map<string, number>, key: string, value: number) {
 }
 
 /** Every per-day total, computed once from the common tables. */
-function dailyTotals(db: Database, { timeZone, cutoffHour, targetLanguage }: DashboardOptions): Totals {
+export function dailyTotals(
+  db: Database,
+  { timeZone, cutoffHour, targetLanguage }: DashboardOptions,
+): Totals {
   const day = (ts: number) => dayKey(ts, timeZone, cutoffHour);
   const gsm = new Map<string, number>();
   for (const row of db
@@ -96,7 +99,7 @@ function dailyTotals(db: Database, { timeZone, cutoffHour, targetLanguage }: Das
   return { gsm, deuchan, reviews, mined };
 }
 
-function summaryOf(totals: Totals, day: string): DaySummary {
+export function summaryOf(totals: Totals, day: string): DaySummary {
   const reviews = totals.reviews.get(day);
   return {
     day,

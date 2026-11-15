@@ -9,6 +9,7 @@ import type {
   SearchResponse,
   SteamCandidate,
   SourcesResponse,
+  StatsResponse,
   SyncOutcome,
 } from "@mosaik/shared";
 
@@ -25,6 +26,7 @@ export const getSources = () => request<SourcesResponse>("/api/sources");
 export const getOverview = (days = 30) => request<OverviewResponse>(`/api/overview?days=${days}`);
 export const getDay = (day: string) => request<DayDetailResponse>(`/api/days/${day}`);
 export const getAnki = () => request<AnkiStatsResponse>("/api/anki");
+export const getStats = () => request<StatsResponse>("/api/stats");
 export const getContents = () => request<ContentsResponse>("/api/contents");
 export const getContent = (id: string) =>
   request<ContentDetailResponse>(`/api/contents/${encodeURIComponent(id)}`);

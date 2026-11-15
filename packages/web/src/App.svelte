@@ -8,6 +8,7 @@
   import Day from "./pages/Day.svelte";
   import Search from "./pages/Search.svelte";
   import Sources from "./pages/Sources.svelte";
+  import Stats from "./pages/Stats.svelte";
   import Anki from "./pages/Anki.svelte";
   import Contents from "./pages/Contents.svelte";
   import Home from "./pages/Home.svelte";
@@ -32,6 +33,12 @@
       icon: "M4 4h4v16H4zM10 4h4v16h-4zM16 5l4 1-3 14-4-1z",
     },
     { href: "#/anki", page: "anki", label: "Anki", icon: "M5 4h11l3 3v13H5zM8 10h8M8 14h8M8 18h5" },
+    {
+      href: "#/estadisticas",
+      page: "stats",
+      label: "Estadísticas",
+      icon: "M4 20h16M6 20v-7M11 20V5M16 20v-10",
+    },
     {
       href: "#/buscar",
       page: "search",
@@ -78,6 +85,8 @@
       <Contents />
     {:else if router.route.page === "anki"}
       <Anki />
+    {:else if router.route.page === "stats"}
+      <Stats />
     {:else if router.route.page === "content"}
       <Content id={router.route.id} />
     {:else if router.route.page === "day"}
@@ -212,6 +221,8 @@
     max-width: 1180px;
     width: 100%;
     box-sizing: border-box;
+    /* A wide table scrolls inside its card instead of widening the page */
+    min-width: 0;
   }
 
   @media (max-width: 1000px) {

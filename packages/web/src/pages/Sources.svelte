@@ -59,6 +59,30 @@
       .join(" · ");
   }
 
+  const EXPORTS = [
+    {
+      href: "/api/export/days.csv",
+      label: "Días (CSV)",
+      detail: "Un renglón por día: segundos de juego, de YouTube y en total, repasos y tarjetas minadas.",
+    },
+    {
+      href: "/api/export/contents.csv",
+      label: "Biblioteca (CSV)",
+      detail: "Cada juego y video con su tiempo, sesiones, caracteres, tarjetas y primer y último día.",
+    },
+    {
+      href: "/api/export/cards.csv",
+      label: "Tarjetas (CSV)",
+      detail: "Cada nota de Anki que Mosaik conoce, con su origen, mazo, contenido y día de creación.",
+    },
+    {
+      href: "/api/export/backup",
+      label: "Copia completa (SQLite)",
+      detail:
+        "La base de Mosaik entera, también las líneas leídas y las portadas. Para restaurarla: cerrá el hub, reemplazá mosaik.db (en %LOCALAPPDATA%\\Mosaik) por este archivo y borrá mosaik.db-wal y mosaik.db-shm si están.",
+    },
+  ];
+
   function warningsOf(summary: Record<string, unknown> | null): string[] {
     const warnings = summary?.warnings;
     return Array.isArray(warnings) ? warnings.filter((item): item is string => typeof item === "string") : [];
@@ -130,7 +154,35 @@
   {/if}
 </section>
 
+<section class="card" aria-labelledby="export-title">
+  <h2 id="export-title">Exportar</h2>
+  <p class="note">
+    Tus datos como archivos, para abrirlos en una planilla o guardarlos aparte. Se generan en el momento y no
+    salen de esta computadora.
+  </p>
+  <ul class="exports">
+    {#each EXPORTS as item (item.href)}
+      <li>
+        <a class="download" href={item.href} download>{item.label}</a>
+        <span class="summary">{item.detail}</span>
+      </li>
+    {/each}
+  </ul>
+</section>
+
 <style>
+  .exports {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+  }
+
+  .download {
+    font-weight: 600;
+  }
+
   .source-name {
     font-weight: 500;
   }

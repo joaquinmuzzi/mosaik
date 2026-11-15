@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  import { BarChart, HeatmapChart, LineChart, PieChart } from "echarts/charts";
+  import { BarChart, HeatmapChart, LineChart, PieChart, ScatterChart } from "echarts/charts";
   import {
     CalendarComponent,
     GridComponent,
@@ -15,6 +15,7 @@
     BarChart,
     LineChart,
     PieChart,
+    ScatterChart,
     HeatmapChart,
     CalendarComponent,
     GridComponent,

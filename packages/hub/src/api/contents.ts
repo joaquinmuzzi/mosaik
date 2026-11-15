@@ -36,7 +36,7 @@ interface VideoTotals {
 }
 
 /** Per video: seconds credited by Deuchan, per day, from the newest snapshot of each day. */
-function videoTotals(db: Database): Map<string, VideoTotals> {
+export function videoTotals(db: Database): Map<string, VideoTotals> {
   const totals = new Map<string, VideoTotals>();
   const rows = db
     .prepare(

@@ -33,6 +33,11 @@ Todo corre en esta computadora: el servidor escucha solo en `127.0.0.1` y ningú
 - **Fase 6 (validación y arranque)**: los números se comparan con los de Anki, GSM y Deuchan (ver
   `docs/plan.md`), y el hub puede arrancar solo al iniciar sesión en Windows.
 
+- **Estadísticas y exportación**: la página Estadísticas, con todo el historial, muestra destacados (lo que más
+  tiempo, sesiones, caracteres y tarjetas tuvo, el mejor día y las rachas más largas), el ritmo de la semana
+  (promedio y mediana por día) y una tabla por semana, mes o año con el cambio respecto del período anterior.
+  En Fuentes se bajan los días, la biblioteca y las tarjetas como CSV, y una copia completa de la base.
+
 ## Arranque con Windows
 
 ```bash
@@ -40,7 +45,7 @@ npm run autostart:install
 ```
 
 Compila y crea la tarea programada "Mosaik" de tu usuario (no hace falta ser administrador): al iniciar sesión
-arranca el hub sin ventana, con los logs en `%LOCALAPPDATA%Mosaikhub.log`. El dashboard queda en
+arranca el hub sin ventana, con los logs en `%LOCALAPPDATA%\Mosaik\hub.log`. El dashboard queda en
 <http://127.0.0.1:7300>. Después de actualizar Mosaik, volvé a correr ese comando para recompilar.
 
 - `npm run autostart:status`: si la tarea existe y si el hub responde.
@@ -128,6 +133,9 @@ Todas son opcionales:
 | `GET /api/overview?days=30` | Un resumen por día (juegos, YouTube, repasos, tarjetas minadas) y la racha |
 | `GET /api/days/:day` | El detalle de un día, fuente por fuente |
 | `GET /api/anki` | Tarjetas y retención por origen, y la evolución por semana |
+| `GET /api/stats` | Todos los días desde el primero con algo, y los destacados (récords y rachas) |
+| `GET /api/export/days.csv` | Los días como CSV (también `contents.csv` y `cards.csv`) |
+| `GET /api/export/backup` | Una copia completa de la base (SQLite), tomada sin parar el hub |
 | `GET /api/contents` | Juegos y videos con su tiempo, sesiones y tarjetas |
 | `GET /api/contents/:id` | La ficha de un contenido |
 | `PUT /api/contents/:id/cover` | Guarda la imagen enviada (PNG, JPEG, WebP o GIF, hasta 5 MB) como portada elegida |

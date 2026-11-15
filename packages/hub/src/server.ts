@@ -19,12 +19,21 @@ import type {
   OverviewResponse,
   SourceStatus,
   SourcesResponse,
+  StatsResponse,
 } from "@mosaik/shared";
+import { dayKey } from "@mosaik/shared";
 import { contentDetail, listContents, searchLines } from "./api/contents.ts";
 import { MAX_COVER_BYTES, getCover, removeManualCover, setManualCover } from "./api/covers.ts";
 import { searchSteam, setSteamCover } from "./api/steam.ts";
 import { ankiStats, dayDetail, isDay, overview } from "./api/dashboard.ts";
-import Fastify, { type FastifyInstance, type FastifyServerOptions, LogController } from "fastify";
+import { backupDatabase, cardsCsv, contentsCsv, daysCsv } from "./api/export.ts";
+import { stats } from "./api/stats.ts";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyServerOptions,
+  LogController,
+} from "fastify";
 import type { Config } from "./config.ts";
 import { listConnectorStates } from "./connectors/state.ts";
 import type { Database } from "./db/database.ts";
@@ -156,6 +165,32 @@ export async function buildServer({
   app.get("/api/anki", async (): Promise<AnkiStatsResponse> => ankiStats(db, dashboard));
 
   app.get("/api/contents", async () => listContents(db, dashboard));
+
+  app.get("/api/stats", async (): Promise<StatsResponse> => stats(db, dashboard));
+
+  // Downloads: the file name carries today's date, and nothing is cached
+  const download = (reply: FastifyReply, name: string, type: string, body: string | Buffer) => {
+    const today = dayKey(Date.now(), dashboard.timeZone, dashboard.cutoffHour);
+    const [base, extension] = name.split(".") as [string, string];
+    return reply
+      .header("Content-Type", type)
+      .header("Content-Disposition", `attachment; filename="mosaik-${base}-${today}.${extension}"`)
+      .header("Cache-Control", "no-store")
+      .send(body);
+  };
+  const CSV = "text/csv; charset=utf-8";
+  app.get("/api/export/days.csv", async (_request, reply) =>
+    download(reply, "dias.csv", CSV, daysCsv(db, dashboard)),
+  );
+  app.get("/api/export/contents.csv", async (_request, reply) =>
+    download(reply, "contenidos.csv", CSV, contentsCsv(db, dashboard)),
+  );
+  app.get("/api/export/cards.csv", async (_request, reply) =>
+    download(reply, "tarjetas.csv", CSV, cardsCsv(db, dashboard)),
+  );
+  app.get("/api/export/backup", async (_request, reply) =>
+    download(reply, "backup.sqlite", "application/vnd.sqlite3", backupDatabase(db)),
+  );
 
   app.get<{ Params: { id: string } }>("/api/contents/:id/cover", async (request, reply) => {
     const cover = await getCover(db, request.params.id, { youtubeThumbnails: config.youtubeThumbnails });
