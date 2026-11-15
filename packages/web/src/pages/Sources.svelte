@@ -180,7 +180,7 @@
   }
 
   .download {
-    font-weight: 600;
+    font-weight: 500;
   }
 
   .source-name {

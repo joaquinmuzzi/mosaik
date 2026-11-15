@@ -5,7 +5,9 @@
 import type { Theme } from "./Chart.svelte";
 
 /** The page font, named: ECharts measures text with it, and "inherit" would measure with another. */
-const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const FONT = '"Geist Variable", "Segoe UI", system-ui, sans-serif';
+/** Axis labels and other figures: muted, in the mono partner. */
+export const MONO = '"Geist Mono Variable", ui-monospace, Consolas, monospace';
 
 export function baseOption(theme: Theme, extra: { legend: boolean }) {
   return {
@@ -17,8 +19,9 @@ export function baseOption(theme: Theme, extra: { legend: boolean }) {
           top: 0,
           right: 0,
           icon: "roundRect",
-          itemWidth: 12,
-          itemHeight: 12,
+          itemWidth: 8,
+          itemHeight: 8,
+          itemGap: 16,
           textStyle: { color: theme.text, fontFamily: FONT },
         }
       : { show: false },
@@ -38,7 +41,7 @@ export function categoryAxis(theme: Theme, labels: string[]) {
     data: labels,
     axisLine: { lineStyle: { color: theme.grid } },
     axisTick: { show: false },
-    axisLabel: { color: theme.muted, hideOverlap: true },
+    axisLabel: { color: theme.muted, hideOverlap: true, fontFamily: MONO, fontSize: 11 },
   };
 }
 
@@ -46,9 +49,9 @@ export function valueAxis(theme: Theme, name: string) {
   return {
     type: "value",
     name,
-    nameTextStyle: { color: theme.muted, align: "left" },
-    splitLine: { lineStyle: { color: theme.grid, opacity: 0.6 } },
-    axisLabel: { color: theme.muted },
+    nameTextStyle: { color: theme.muted, align: "left", fontFamily: MONO, fontSize: 11 },
+    splitLine: { lineStyle: { color: theme.grid } },
+    axisLabel: { color: theme.muted, fontFamily: MONO, fontSize: 11 },
   };
 }
 

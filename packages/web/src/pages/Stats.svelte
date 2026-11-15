@@ -306,15 +306,13 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.8125rem !important;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    font-size: 0.9286rem !important;
     color: var(--muted);
   }
 
   .k-section {
     margin: 0 0 10px;
-    font-weight: 600;
+    font-weight: 500;
   }
 
   .k-highlights {
@@ -375,12 +373,10 @@
     gap: 6px;
     color: var(--muted);
     font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
   }
 
   .k-hl-title {
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.3;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -391,7 +387,7 @@
 
   .k-hl-big {
     font-size: 1.5rem;
-    font-weight: 700;
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
     line-height: 1.2;
   }
@@ -436,9 +432,7 @@
   .k-periods thead th {
     color: var(--muted);
     font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-weight: 500;
   }
 
   .k-periods tbody th {
@@ -455,11 +449,11 @@
   }
 
   .strong {
-    font-weight: 600;
+    font-weight: 500;
   }
 
   .delta.up {
-    color: var(--series-gsm);
+    color: var(--positive);
   }
 
   .delta.down,
@@ -469,10 +463,10 @@
 
   .k-current {
     margin-left: 6px;
-    padding: 1px 6px;
-    border-radius: 999px;
+    padding: 0;
+    border-radius: 0;
     font-size: 0.6875rem;
     color: var(--muted);
-    border: 1px solid var(--border);
+    font-family: var(--mono);
   }
 </style>

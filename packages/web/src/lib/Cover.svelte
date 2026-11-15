@@ -44,15 +44,14 @@
     overflow: hidden;
     display: grid;
     place-items: center;
-    background:
-      radial-gradient(circle at 30% 20%, rgb(255 255 255 / 0.18), transparent 60%),
-      linear-gradient(140deg, var(--series-gsm), color-mix(in srgb, var(--series-gsm) 45%, #000));
+    /* No cover yet: a flat tile in a dim tone of the source's color, with the initials in it */
+    background: color-mix(in srgb, var(--series-gsm) 22%, var(--surface));
+    color: var(--series-gsm);
   }
 
   .cover.video {
-    background:
-      radial-gradient(circle at 30% 20%, rgb(255 255 255 / 0.18), transparent 60%),
-      linear-gradient(140deg, var(--series-youtube), color-mix(in srgb, var(--series-youtube) 45%, #000));
+    background: color-mix(in srgb, var(--series-youtube) 22%, var(--surface));
+    color: var(--series-youtube);
   }
 
   img {
@@ -75,24 +74,18 @@
   }
 
   .initials {
-    color: #fff;
-    font-weight: 700;
+    font-weight: 500;
     font-size: clamp(1.25rem, 30cqi, 3rem);
-    letter-spacing: 0.04em;
-    text-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
   }
 
   .kind {
     position: absolute;
     left: 8px;
     top: 8px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: rgb(0 0 0 / 0.65);
-    color: #fff;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgb(20 20 21 / 0.8);
+    color: var(--text);
+    font-size: 0.8571rem;
   }
 </style>

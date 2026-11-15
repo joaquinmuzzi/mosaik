@@ -224,6 +224,7 @@
     margin: 8px 0 4px;
   }
 
+  /* Sentence case: the date starts with a capital (sábado → Sábado) */
   .day-title::first-letter {
     text-transform: uppercase;
   }
@@ -235,7 +236,7 @@
 
   .total .value {
     font-size: 1.5rem;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text);
   }
 
@@ -291,7 +292,7 @@
 
   .facts dd {
     margin: 0;
-    font-weight: 600;
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
   }
 </style>

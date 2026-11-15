@@ -6,7 +6,7 @@
   import Info from "../lib/Info.svelte";
   import { load } from "../lib/load.svelte";
   import { FEW_ANSWERS, NOTES } from "../lib/notes";
-  import { baseOption, categoryAxis, donutOption, immersionOption, valueAxis } from "../lib/vizkit";
+  import { baseOption, categoryAxis, immersionOption, valueAxis } from "../lib/vizkit";
 
   const anki = load(getAnki);
   const year = load(() => getOverview(16 * 7));
@@ -17,8 +17,6 @@
     "refold-1k": "var(--series-refold)",
     unknown: "var(--series-unknown)",
   };
-  const themeColor = (theme: Theme, origin: string) =>
-    ({ gsm: theme.gsm, youtube: theme.youtube, "refold-1k": theme.refold })[origin] ?? theme.unknown;
 
   const origins = $derived(anki.data?.origins ?? []);
   const totalCards = $derived(origins.reduce((sum, origin) => sum + origin.cards, 0));
@@ -27,19 +25,6 @@
   const mined = $derived(minedTotals(origins));
 
   const show = (value: number | null) => (value === null ? "—" : percent.format(value));
-
-  const donut = $derived((theme: Theme) =>
-    donutOption(
-      theme,
-      origins.map((origin) => ({
-        name: ORIGIN_LABELS[origin.origin] ?? origin.origin,
-        value: origin.cards,
-        color: themeColor(theme, origin.origin),
-      })),
-      (value) => `${number.format(value)} tarjetas`,
-      number.format(totalCards),
-    ),
-  );
 
   const matured = $derived.by(() => {
     const weeks = anki.data?.weeks ?? [];
@@ -125,15 +110,20 @@
   <div class="k-row">
     <section class="card">
       <h2>Por origen</h2>
-      <Chart option={donut} height={200} label="Tarjetas por origen" />
-      <ul class="k-origins">
+      <ul class="k-origins" aria-label="Tarjetas por origen, con su retención en jóvenes">
         {#each origins as origin (origin.origin)}
           <li>
-            <i style:background={color[origin.origin]}></i>
+            <span class="tile" style:background={color[origin.origin]}></span>
             <span>{ORIGIN_LABELS[origin.origin] ?? origin.origin}</span>
             <b>{number.format(origin.cards)}</b>
             <span class="k-ret" class:dim={origin.young.reviews < FEW_ANSWERS}
               >{show(rate(origin.young))}</span
+            >
+            <span class="k-bar" aria-hidden="true"
+              ><i
+                style:width={`${totalCards > 0 ? (origin.cards / totalCards) * 100 : 0}%`}
+                style:background={color[origin.origin]}
+              ></i></span
             >
           </li>
         {/each}
@@ -168,9 +158,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.8125rem !important;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    font-size: 0.9286rem !important;
     color: var(--muted);
   }
 
@@ -197,13 +185,11 @@
     gap: 6px;
     color: var(--muted);
     font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
   }
 
   .k-value {
     font-size: 1.75rem;
-    font-weight: 700;
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
   }
 
@@ -228,21 +214,27 @@
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 6px;
-    font-size: 0.875rem;
+    gap: 16px;
   }
 
   .k-origins li {
     display: grid;
-    grid-template-columns: 10px 1fr auto 48px;
+    grid-template-columns: 8px 1fr auto 48px;
     align-items: center;
     gap: 8px;
   }
 
-  .k-origins i {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
+  .k-bar {
+    grid-column: 2 / -1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+
+  .k-bar i {
+    display: block;
+    height: 100%;
   }
 
   .k-origins b {

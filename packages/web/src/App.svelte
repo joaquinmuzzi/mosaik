@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** The dashboard: a sidebar (inspired by Kechimochi), compact dark cards and charts up front. */
+  /** The dashboard: a quiet sidebar and the pages, on a neutral graphite ramp. */
   import type { HealthResponse } from "@mosaik/shared";
   import { onMount } from "svelte";
   import { getHealth } from "./lib/api";
@@ -73,7 +73,7 @@
         {/each}
       </nav>
       <p class="k-status" class:down={!health}>
-        <span class="dot" aria-hidden="true"></span>{health ? "Hub conectado" : "Hub sin conexión"}
+        <span class="tile" aria-hidden="true"></span>{health ? "Hub conectado" : "Hub sin conexión"}
       </p>
     </div>
   </aside>
@@ -102,12 +102,12 @@
 <style>
   .k-layout {
     display: grid;
-    grid-template-columns: 220px 1fr;
+    grid-template-columns: 240px minmax(0, 1fr);
     min-height: 100vh;
   }
 
   .k-side {
-    background: var(--surface);
+    background: var(--sidebar);
     border-right: 1px solid var(--border);
   }
 
@@ -117,8 +117,8 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    padding: 22px 14px;
+    gap: 24px;
+    padding: 20px 12px;
     box-sizing: border-box;
   }
 
@@ -126,23 +126,24 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    height: 32px;
     padding: 0 8px;
     color: var(--text);
-    font-size: 1.25rem;
-    font-weight: 700;
+    font-size: 1.1429rem;
+    font-weight: 500;
     text-decoration: none;
   }
 
   .k-tiles {
     display: grid;
-    grid-template-columns: repeat(2, 10px);
-    gap: 3px;
+    grid-template-columns: repeat(2, 8px);
+    gap: 2px;
   }
 
   .k-tiles i {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
     background: var(--series-gsm);
   }
 
@@ -155,7 +156,7 @@
   }
 
   .k-tiles i:nth-child(4) {
-    background: var(--series-mined);
+    background: var(--accent);
   }
 
   nav {
@@ -168,29 +169,37 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 9px 10px;
-    border-radius: 8px;
-    color: var(--muted);
+    height: 36px;
+    padding: 0 8px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    color: var(--secondary);
     text-decoration: none;
-    font-weight: 500;
+    transition:
+      background-color 150ms var(--ease),
+      color 150ms var(--ease);
   }
 
   nav a:hover {
-    background: var(--surface-2);
+    background: var(--surface);
     color: var(--text);
   }
 
+  /* The active row: one surface step, a hairline and a soft top highlight */
   nav a[aria-current="page"] {
-    background: var(--accent);
-    color: var(--on-accent);
+    background: var(--surface-2);
+    border-color: var(--border);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+    color: var(--text);
   }
 
   nav svg {
+    flex: none;
     width: 18px;
     height: 18px;
     fill: none;
     stroke: currentColor;
-    stroke-width: 2;
+    stroke-width: 1.5;
     stroke-linejoin: round;
     stroke-linecap: round;
   }
@@ -200,26 +209,23 @@
     padding: 0 8px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     color: var(--muted);
-    font-size: 0.75rem;
+    font-size: 0.8571rem;
   }
 
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--ok);
+  .k-status .tile {
+    background: var(--positive);
   }
 
-  .k-status.down .dot {
+  .k-status.down .tile {
     background: var(--danger);
   }
 
   .k-main {
-    padding: 24px 28px 72px;
-    max-width: 1180px;
     width: 100%;
+    max-width: 1440px;
+    padding: 32px 32px 80px;
     box-sizing: border-box;
     /* A wide table scrolls inside its card instead of widening the page */
     min-width: 0;
@@ -227,7 +233,7 @@
 
   @media (max-width: 1000px) {
     .k-layout {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
 
     .k-side {
@@ -241,9 +247,8 @@
       flex-direction: row;
       flex-wrap: wrap;
       align-items: center;
+      gap: 12px;
       padding: 12px 16px;
-      border-right: 0;
-      border-bottom: 1px solid var(--border);
     }
 
     nav {
@@ -260,7 +265,7 @@
     }
 
     .k-main {
-      padding: 16px 16px 72px;
+      padding: 20px 16px 80px;
     }
   }
 </style>

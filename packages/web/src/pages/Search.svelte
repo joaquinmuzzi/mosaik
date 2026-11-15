@@ -126,7 +126,7 @@
   }
 
   mark {
-    background: color-mix(in srgb, var(--series-gsm) 30%, transparent);
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
     color: inherit;
     border-radius: 3px;
     padding: 0 1px;
@@ -142,8 +142,8 @@
     display: inline-block;
     margin-left: 6px;
     padding: 0 8px;
-    border-radius: 999px;
-    border: 1px solid var(--series-gsm);
+    border-radius: 4px;
+    border: 1px solid var(--border-strong);
     color: var(--text);
   }
 </style>

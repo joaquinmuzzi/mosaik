@@ -261,7 +261,7 @@
 
   .value {
     font-size: 1.25rem;
-    font-weight: 600;
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
   }
 
@@ -296,8 +296,8 @@
     display: inline-block;
     margin-left: 6px;
     padding: 0 8px;
-    border-radius: 999px;
-    border: 1px solid var(--series-gsm);
+    border-radius: 4px;
+    border: 1px solid var(--border-strong);
     font-size: 0.75rem;
   }
 </style>

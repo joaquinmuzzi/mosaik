@@ -39,6 +39,8 @@
     muted: string;
     grid: string;
     surface: string;
+    /** Heatmap cells without activity. */
+    heatEmpty: string;
   }
 
   export function readTheme(): Theme {
@@ -56,6 +58,7 @@
       muted: token("--muted"),
       grid: token("--grid"),
       surface: token("--surface"),
+      heatEmpty: token("--heat-empty") || token("--grid"),
     };
   }
 

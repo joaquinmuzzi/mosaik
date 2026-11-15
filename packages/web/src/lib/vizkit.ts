@@ -5,7 +5,7 @@
  */
 import type { DaySummary } from "@mosaik/shared";
 import type { EChartsOption, Theme } from "./Chart.svelte";
-import { barSeries, baseOption, categoryAxis, valueAxis } from "./charts";
+import { MONO, barSeries, baseOption, categoryAxis, valueAxis } from "./charts";
 import { type TitleSeries, immersion, mondayOf, perWeek, weekKeys } from "./data";
 import { dayShort, duration, minutes } from "./format";
 
@@ -28,7 +28,11 @@ export function mixHex(first: string, second: string, weight: number): string {
 }
 
 /** One year of immersion as a calendar heatmap, one hue from the surface to the accent. */
-export function heatmapOption(theme: Theme, days: DaySummary[], color = theme.accent): EChartsOption {
+export function heatmapOption(
+  theme: Theme,
+  days: DaySummary[],
+  { color = theme.accent, cell = 13 }: { color?: string; cell?: number } = {},
+): EChartsOption {
   const values = days.map((day) => [day.day, minutes(immersion(day))] as [string, number]);
   const max = Math.max(30, ...values.map(([, value]) => value));
   return {
@@ -44,7 +48,8 @@ export function heatmapOption(theme: Theme, days: DaySummary[], color = theme.ac
       show: false,
       min: 0,
       max,
-      inRange: { color: [mixHex(color, theme.surface, 0.22), color] },
+      // From a dim tessera to full ochre: the mosaic fills in as the days add up
+      inRange: { color: [mixHex(color, theme.surface, 0.28), color] },
     },
     calendar: {
       range: [days[0]?.day ?? "", days.at(-1)?.day ?? ""],
@@ -52,27 +57,35 @@ export function heatmapOption(theme: Theme, days: DaySummary[], color = theme.ac
       left: 34,
       right: 8,
       bottom: 4,
-      cellSize: ["auto", 13],
+      cellSize: ["auto", cell],
       splitLine: { show: false },
       // Empty days stay visible as a faint cell, so the year reads as a grid
       itemStyle: {
-        color: mixHex(theme.grid, theme.surface, 0.55),
+        color: theme.heatEmpty,
         borderColor: theme.surface,
         borderWidth: 3,
       },
       yearLabel: { show: false },
       monthLabel: {
         color: theme.muted,
+        fontFamily: MONO,
+        fontSize: 11,
         nameMap: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
       },
-      dayLabel: { color: theme.muted, firstDay: 1, nameMap: ["D", "L", "M", "M", "J", "V", "S"] },
+      dayLabel: {
+        color: theme.muted,
+        fontFamily: MONO,
+        fontSize: 11,
+        firstDay: 1,
+        nameMap: ["D", "L", "M", "M", "J", "V", "S"],
+      },
     },
     series: [
       {
         type: "heatmap",
         coordinateSystem: "calendar",
         data: values.map(([day, value]) => [day, value > 0 ? value : null]),
-        itemStyle: { borderRadius: 3, borderColor: theme.surface, borderWidth: 2 },
+        itemStyle: { borderRadius: 2, borderColor: theme.surface, borderWidth: 2 },
       },
     ],
   };

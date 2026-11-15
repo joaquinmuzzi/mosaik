@@ -16,6 +16,7 @@
 <style>
   .toggle {
     display: inline-flex;
+    gap: 2px;
     padding: 2px;
     border-radius: var(--toggle-radius, 8px);
     background: var(--bg);
@@ -24,23 +25,32 @@
 
   button {
     font: inherit;
-    font-size: 0.75rem;
-    padding: 3px 10px;
-    border: 0;
+    font-size: 0.8571rem;
+    height: 24px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    /* Nested radius: the outer radius minus the 2px padding */
     border-radius: calc(var(--toggle-radius, 8px) - 2px);
     background: transparent;
     color: var(--muted);
     cursor: pointer;
+    transition:
+      background-color 150ms var(--ease),
+      color 150ms var(--ease);
+  }
+
+  button:hover {
+    color: var(--text);
   }
 
   button[aria-pressed="true"] {
-    background: var(--accent, var(--series-gsm));
-    color: var(--on-accent, #fff);
-    font-weight: 600;
+    background: var(--surface-2);
+    border-color: var(--border);
+    color: var(--text);
   }
 
   button:focus-visible {
-    outline: 2px solid var(--accent, var(--series-gsm));
+    outline: 2px solid var(--accent);
     outline-offset: 1px;
   }
 </style>

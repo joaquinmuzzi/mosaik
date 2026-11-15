@@ -3,20 +3,13 @@
   import { getContents, getOverview } from "../lib/api";
   import Chart, { type Theme } from "../lib/Chart.svelte";
   import { type FeedItem, type TitleSeries, immersion, loadFeed, loadTitleSeries } from "../lib/data";
-  import { dayShort, duration, number } from "../lib/format";
+  import { dayLong, dayShort, duration, number, percent } from "../lib/format";
   import Info from "../lib/Info.svelte";
   import { load } from "../lib/load.svelte";
   import { NOTES } from "../lib/notes";
   import { hrefDay } from "../lib/router.svelte";
   import Toggle from "../lib/Toggle.svelte";
-  import {
-    type Mark,
-    type Period,
-    type Split,
-    donutOption,
-    heatmapOption,
-    immersionOption,
-  } from "../lib/vizkit";
+  import { type Mark, type Period, type Split, heatmapOption, immersionOption } from "../lib/vizkit";
 
   const year = load(() => getOverview(365));
   let feed = $state<FeedItem[] | null>(null);
@@ -42,29 +35,27 @@
   const total = (list: DaySummary[]) => list.reduce((sum, day) => sum + immersion(day), 0);
   const week = $derived(total(last(7)));
   const previousWeek = $derived(total(last(7, 7)));
+  const weekChange = $derived(week - previousWeek);
   const yearTotal = $derived(total(days));
   const month = $derived(last(30));
   const monthGsm = $derived(month.reduce((sum, day) => sum + day.gsmSeconds, 0));
   const monthYoutube = $derived(month.reduce((sum, day) => sum + (day.deuchanSeconds ?? 0), 0));
+  const monthTotal = $derived(monthGsm + monthYoutube);
+  const monthReviews = $derived(month.reduce((sum, day) => sum + day.reviews, 0));
+  const monthMined = $derived(month.reduce((sum, day) => sum + day.cardsMined, 0));
+  const share = (value: number) => (monthTotal > 0 ? value / monthTotal : 0);
 
-  const heat = $derived((theme: Theme) => heatmapOption(theme, days));
-  const donut = $derived((theme: Theme) =>
-    donutOption(
-      theme,
-      [
-        { name: "Juegos (GSM)", value: monthGsm, color: theme.gsm },
-        { name: "YouTube (Deuchan)", value: monthYoutube, color: theme.youtube },
-      ],
-      duration,
-      duration(monthGsm + monthYoutube),
-    ),
-  );
+  const heat = $derived((theme: Theme) => heatmapOption(theme, days, { cell: 16 }));
   const chartDays = $derived(period === "day" ? last(30) : last(16 * 7));
   const main = $derived((theme: Theme) =>
     immersionOption(theme, chartDays, { mark, period, split, titles: titles ?? [] }),
   );
 
-  const kindLabel = { gsm: "Juego", youtube: "Video", mined: "Anki" } as const;
+  const kindColor = {
+    gsm: "var(--series-gsm)",
+    youtube: "var(--series-youtube)",
+    mined: "var(--series-mined)",
+  } as const;
 </script>
 
 {#if year.error}
@@ -74,59 +65,54 @@
 {:else}
   <header class="k-head">
     <h1>Panel</h1>
+    <span class="meta">{dayLong(today.day)}</span>
     <Info text={NOTES.day(year.data.cutoffHour)} label="Cómo se cuentan los días" />
   </header>
 
   <section class="k-stats" aria-label="Resumen">
     <a class="k-stat" href={hrefDay(today.day)}>
       <span class="k-label">Hoy <Info text={NOTES.immersion} /></span>
-      <span class="k-value">{duration(immersion(today))}</span>
-      <span class="k-split">
-        <i style:background="var(--series-gsm)"></i>{duration(today.gsmSeconds)} juego
-        <i style:background="var(--series-youtube)"></i>{duration(today.deuchanSeconds ?? 0)} video
+      <span class="k-value figure">{duration(immersion(today))}</span>
+      <span class="k-sub">
+        <span class="tile" style:background="var(--series-gsm)"></span>{duration(today.gsmSeconds)} de juego
+        <span class="tile" style:background="var(--series-youtube)"></span>{duration(
+          today.deuchanSeconds ?? 0,
+        )} de video
       </span>
     </a>
     <div class="k-stat">
-      <span class="k-label">Esta semana</span>
-      <span class="k-value">{duration(week)}</span>
-      <span class="k-split">semana anterior {duration(previousWeek)}</span>
+      <span class="k-label">Últimos 7 días</span>
+      <span class="k-value figure">{duration(week)}</span>
+      <span class="k-sub" class:up={weekChange > 0}>
+        {weekChange === 0 ? "igual" : `${weekChange > 0 ? "+" : "−"}${duration(Math.abs(weekChange))}`} vs los 7
+        anteriores
+      </span>
     </div>
     <div class="k-stat">
       <span class="k-label">Racha <Info text={NOTES.streak} /></span>
-      <span class="k-value">{year.data.streak} <small>{year.data.streak === 1 ? "día" : "días"}</small></span>
+      <span class="k-value figure">{year.data.streak} {year.data.streak === 1 ? "día" : "días"}</span>
+      <span class="k-sub">seguidos con inmersión</span>
     </div>
     <div class="k-stat">
       <span class="k-label">Anki hoy <Info text={NOTES.reviews} /></span>
-      <span class="k-value">{number.format(today.reviews)} <small>repasos</small></span>
-      <span class="k-split">{number.format(today.cardsMined)} minadas</span>
-    </div>
-    <div class="k-stat">
-      <span class="k-label">Año <Info text={NOTES.year} /></span>
-      <span class="k-value">{duration(yearTotal)}</span>
+      <span class="k-value figure">{number.format(today.reviews)} repasos</span>
+      <span class="k-sub"
+        >{number.format(today.cardsMined)} {today.cardsMined === 1 ? "minada" : "minadas"}</span
+      >
     </div>
   </section>
 
   <section class="card k-heat">
-    <h2>Actividad del año</h2>
-    <Chart option={heat} height={150} label="Mapa de calor de la inmersión diaria del último año" />
+    <div class="k-card-head">
+      <h2>Último año</h2>
+      <span class="meta">{duration(yearTotal)} en 365 días <Info text={NOTES.year} /></span>
+    </div>
+    <Chart option={heat} height={180} label="Mapa de calor de la inmersión diaria del último año" />
   </section>
 
   <div class="k-row">
-    <section class="card k-donut">
-      <h2>Últimos 30 días</h2>
-      <Chart
-        option={donut}
-        height={190}
-        label="Distribución de la inmersión de los últimos 30 días por fuente"
-      />
-      <ul class="k-legend">
-        <li><i style:background="var(--series-gsm)"></i>Juegos <b>{duration(monthGsm)}</b></li>
-        <li><i style:background="var(--series-youtube)"></i>YouTube <b>{duration(monthYoutube)}</b></li>
-      </ul>
-    </section>
-
-    <section class="card k-main-chart">
-      <div class="k-chart-head">
+    <section class="card">
+      <div class="k-card-head">
         <h2>Inmersión</h2>
         <div class="k-switches">
           <Toggle
@@ -156,8 +142,52 @@
         </div>
       </div>
       {#key `${split}-${titles ? 1 : 0}`}
-        <Chart option={main} height={250} label="Inmersión por período" />
+        <Chart option={main} height={300} label="Inmersión por período" />
       {/key}
+    </section>
+
+    <section class="card">
+      <div class="k-card-head">
+        <h2>Últimos 30 días</h2>
+        <span class="meta">{duration(monthTotal)}</span>
+      </div>
+      <ul class="k-shares" aria-label="Inmersión de los últimos 30 días por fuente">
+        <li>
+          <span class="k-share-name"
+            ><span class="tile" style:background="var(--series-gsm)"></span>Juegos</span
+          >
+          <span class="figure">{duration(monthGsm)}</span>
+          <span class="k-bar" aria-hidden="true"
+            ><i style:width={`${share(monthGsm) * 100}%`} style:background="var(--series-gsm)"></i></span
+          >
+          <span class="meta">{percent.format(share(monthGsm))}</span>
+        </li>
+        <li>
+          <span class="k-share-name"
+            ><span class="tile" style:background="var(--series-youtube)"></span>YouTube</span
+          >
+          <span class="figure">{duration(monthYoutube)}</span>
+          <span class="k-bar" aria-hidden="true"
+            ><i style:width={`${share(monthYoutube) * 100}%`} style:background="var(--series-youtube)"
+            ></i></span
+          >
+          <span class="meta">{percent.format(share(monthYoutube))}</span>
+        </li>
+      </ul>
+      <dl class="k-facts">
+        <div>
+          <dt>Repasos</dt>
+          <dd class="figure">{number.format(monthReviews)}</dd>
+        </div>
+        <div>
+          <dt>Tarjetas minadas</dt>
+          <dd class="figure">{number.format(monthMined)}</dd>
+        </div>
+        <div>
+          <dt>Promedio por día</dt>
+          <dd class="figure">{duration(monthTotal / 30)}</dd>
+        </div>
+      </dl>
     </section>
   </div>
 
@@ -166,14 +196,17 @@
     {#if !feed}
       <p class="muted">Cargando…</p>
     {:else if feed.length === 0}
-      <p class="muted">Nada todavía.</p>
+      <p class="muted">Nada todavía</p>
     {:else}
       <ul class="k-feed">
         {#each feed as item (item.key)}
           <li>
-            <span class="k-kind {item.kind}">{kindLabel[item.kind]}</span>
-            <span class="k-feed-text"><b>{item.title}</b><span>{item.detail}</span></span>
-            <a class="k-feed-day" href={hrefDay(item.day)}>{dayShort(item.day)}</a>
+            <span class="tile" style:background={kindColor[item.kind]} aria-hidden="true"></span>
+            <span class="k-feed-text">
+              <span class="k-feed-title">{item.title}</span>
+              <span class="k-feed-detail">{item.detail}</span>
+            </span>
+            <a class="meta k-feed-day" href={hrefDay(item.day)}>{dayShort(item.day)}</a>
           </li>
         {/each}
       </ul>
@@ -184,40 +217,35 @@
 <style>
   .k-head {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 14px;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 24px;
   }
 
   h1 {
     margin: 0;
-    font-size: 1.5rem;
-  }
-
-  h2 {
-    font-size: 0.8125rem !important;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
+    font-size: 2rem;
+    line-height: 1.15;
   }
 
   .k-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
     margin-bottom: 16px;
   }
 
   .k-stat {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 14px 16px;
-    border-radius: 12px;
+    gap: 4px;
+    padding: 16px 20px;
+    border-radius: var(--radius-card);
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--text);
     text-decoration: none;
+    transition: background-color 150ms var(--ease);
   }
 
   a.k-stat:hover {
@@ -228,80 +256,112 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    color: var(--muted);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    color: var(--secondary);
   }
 
   .k-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    line-height: 1.2;
-  }
-
-  .k-value small {
-    font-size: 0.875rem;
+    font-size: 2rem;
     font-weight: 500;
-    color: var(--muted);
+    line-height: 1.15;
   }
 
-  .k-split {
+  .k-sub {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    gap: 4px 8px;
     color: var(--muted);
-    font-size: 0.8125rem;
+    font-size: 0.9286rem;
   }
 
-  .k-split i,
-  .k-legend i {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
+  .k-sub.up {
+    color: var(--positive);
   }
 
-  .k-row {
-    display: grid;
-    grid-template-columns: minmax(240px, 1fr) 2.4fr;
-    gap: 16px;
-  }
-
-  .k-legend {
-    list-style: none;
-    margin: 4px 0 0;
-    padding: 0;
-    display: grid;
-    gap: 4px;
-    font-size: 0.8125rem;
-    color: var(--muted);
-  }
-
-  .k-legend li {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .k-legend b {
-    margin-left: auto;
-    color: var(--text);
-  }
-
-  .k-chart-head {
+  .k-card-head {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 8px 16px;
+    margin-bottom: 12px;
+  }
+
+  .k-card-head h2 {
+    margin: 0;
+  }
+
+  .k-card-head .meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .k-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+    gap: 16px;
   }
 
   .k-switches {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
+  }
+
+  .k-shares {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 16px;
+  }
+
+  .k-shares li {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px 12px;
+  }
+
+  .k-share-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--secondary);
+  }
+
+  .k-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+
+  .k-bar i {
+    display: block;
+    height: 100%;
+  }
+
+  .k-facts {
+    margin: 20px 0 0;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--border);
+    display: grid;
+    gap: 8px;
+  }
+
+  .k-facts div {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .k-facts dt {
+    color: var(--secondary);
+  }
+
+  .k-facts dd {
+    margin: 0;
   }
 
   .k-feed {
@@ -311,11 +371,10 @@
   }
 
   .k-feed li {
-    display: grid;
-    grid-template-columns: 64px 1fr auto;
+    display: flex;
     align-items: center;
     gap: 12px;
-    padding: 8px 0;
+    min-height: 40px;
     border-bottom: 1px solid var(--border);
   }
 
@@ -323,53 +382,41 @@
     border-bottom: 0;
   }
 
-  .k-kind {
-    justify-self: start;
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    /* Dark text: white on these mid-tone colors would fall under 4.5:1 */
-    color: #120d1a;
-    background: var(--series-gsm);
-  }
-
-  .k-kind.youtube {
-    background: var(--series-youtube);
-  }
-
-  .k-kind.mined {
-    background: var(--series-mined);
-  }
-
   .k-feed-text {
     display: flex;
-    flex-direction: column;
+    align-items: baseline;
+    gap: 12px;
+    flex: 1;
     min-width: 0;
   }
 
-  .k-feed-text b {
-    font-weight: 600;
+  .k-feed-title {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .k-feed-text span {
+  .k-feed-detail {
+    flex: none;
     color: var(--muted);
-    font-size: 0.8125rem;
   }
 
   .k-feed-day {
-    color: var(--muted);
-    font-size: 0.8125rem;
+    flex: none;
+    text-decoration: none;
   }
 
-  @media (max-width: 1000px) {
+  .k-feed-day:hover {
+    color: var(--text);
+  }
+
+  @media (max-width: 1100px) {
+    .k-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .k-row {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>
