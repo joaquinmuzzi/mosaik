@@ -21,7 +21,11 @@
 </script>
 
 <div class="cover" class:video={isVideo}>
-  {#if content.cover && !failed}
+  {#if content.cover && !failed && isVideo}
+    <!-- A 16:9 thumbnail in a tile of another shape: whole, over a blurred copy of itself -->
+    <img class="backdrop" src={content.cover} alt="" aria-hidden="true" />
+    <img class="contain" src={content.cover} alt="" loading="lazy" onerror={() => (failed = true)} />
+  {:else if content.cover && !failed}
     <img src={content.cover} alt="" loading="lazy" onerror={() => (failed = true)} />
   {:else}
     <span class="initials" aria-hidden="true">{initials}</span>
@@ -55,6 +59,19 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  img.backdrop {
+    position: absolute;
+    inset: -10%;
+    width: 120%;
+    height: 120%;
+    filter: blur(18px) brightness(0.7);
+  }
+
+  img.contain {
+    position: relative;
+    object-fit: contain;
   }
 
   .initials {

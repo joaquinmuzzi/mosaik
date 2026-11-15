@@ -7,6 +7,7 @@ import type {
   HealthResponse,
   OverviewResponse,
   SearchResponse,
+  SteamCandidate,
   SourcesResponse,
   SyncOutcome,
 } from "@mosaik/shared";
@@ -31,3 +32,20 @@ export const search = (query: string, limit = 100) =>
   request<SearchResponse>(`/api/search?q=${encodeURIComponent(query)}&limit=${limit}`);
 export const syncSource = (source: string) =>
   request<SyncOutcome>(`/api/sync/${encodeURIComponent(source)}`, { method: "POST" });
+
+export const searchSteamCovers = (query: string) =>
+  request<{ results: SteamCandidate[] }>(`/api/covers/steam?q=${encodeURIComponent(query)}`);
+export const setSteamCover = (id: string, appId: number) =>
+  request<{ ok: true }>(`/api/contents/${encodeURIComponent(id)}/cover/steam`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ appId }),
+  });
+export const uploadCover = (id: string, file: File) =>
+  request<{ ok: true }>(`/api/contents/${encodeURIComponent(id)}/cover`, {
+    method: "PUT",
+    headers: { "Content-Type": file.type || "image/png" },
+    body: file,
+  });
+export const removeCover = (id: string) =>
+  request<{ removed: boolean }>(`/api/contents/${encodeURIComponent(id)}/cover`, { method: "DELETE" });

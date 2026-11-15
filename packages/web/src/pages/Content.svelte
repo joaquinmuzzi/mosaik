@@ -2,6 +2,7 @@
   import type { ContentDetailResponse } from "@mosaik/shared";
   import { getContent } from "../lib/api";
   import Chart, { type Theme } from "../lib/Chart.svelte";
+  import CoverPicker from "../lib/CoverPicker.svelte";
   import { barSeries, baseOption, categoryAxis, valueAxis } from "../lib/charts";
   import {
     KIND_LABELS,
@@ -21,15 +22,19 @@
   let error = $state<string | null>(null);
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  $effect(() => {
-    const wanted = id;
-    data = null;
-    error = null;
+  function fetchContent(wanted: string) {
     getContent(wanted)
       .then((result) => {
         if (wanted === id) data = result;
       })
       .catch((cause: unknown) => (error = cause instanceof Error ? cause.message : String(cause)));
+  }
+
+  $effect(() => {
+    const wanted = id;
+    data = null;
+    error = null;
+    fetchContent(wanted);
   });
 
   const isVideo = $derived(data?.content.kind === "video");
@@ -79,11 +84,18 @@
   <p class="muted">Cargando…</p>
 {:else}
   {@const content = data.content}
-  <h2 class="title">{content.title ?? content.id}</h2>
-  <p class="muted">
-    {KIND_LABELS[content.kind] ?? content.kind} · {isVideo ? "YouTube, según Deuchan" : "GameSentenceMiner"}
-    {#if content.url}· <a href={content.url} target="_blank" rel="noreferrer">abrir en YouTube</a>{/if}
-  </p>
+  <header class="head">
+    <CoverPicker {content} onchange={() => fetchContent(id)} />
+    <div>
+      <h2 class="title">{content.title ?? content.id}</h2>
+      <p class="muted">
+        {KIND_LABELS[content.kind] ?? content.kind} · {isVideo
+          ? "YouTube, según Deuchan"
+          : "GameSentenceMiner"}
+        {#if content.url}· <a href={content.url} target="_blank" rel="noreferrer">abrir en YouTube</a>{/if}
+      </p>
+    </div>
+  </header>
 
   <section class="tiles" aria-label="Totales">
     <div class="tile">
@@ -214,6 +226,18 @@
 {/if}
 
 <style>
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .head > div {
+    flex: 1;
+    min-width: 240px;
+  }
+
   .title {
     font-size: 1.25rem;
     margin: 0;
