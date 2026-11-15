@@ -124,6 +124,9 @@ Todas son opcionales:
 | `PUBLIC_URL` | — | Modo servidor: la dirección que se abre (`https://…`); solo ese host recibe respuesta |
 | `SETUP_TOKEN` | — | Modo servidor: secreto de un solo uso (16 caracteres o más) que crea la cuenta |
 | `PORT` | — | Modo servidor: el puerto que da el hosting (si no, `HUB_PORT`) |
+| `SERVER_URL` | — | Modo agente (`MOSAIK_MODE=agent`): el servidor al que manda (`https://…`) |
+| `DEVICE_TOKEN` | — | Modo agente: el token de esta computadora (Fuentes → Dispositivos, en el servidor) |
+| `AGENT_OUTBOX` | carpeta `outbox` junto a la base | Modo agente: donde esperan los lotes que no se pudieron mandar |
 
 ## API (por ahora)
 
@@ -143,7 +146,7 @@ Todas son opcionales:
 | `GET /api/auth/status` | Modo y sesión: `{ mode, authenticated, setupNeeded, username }` |
 | `POST /api/auth/setup`, `/login`, `/logout` | Modo servidor: crear la cuenta (con `SETUP_TOKEN`), entrar y salir |
 | `GET`/`POST /api/devices`, `DELETE /api/devices/:name` | Modo servidor: computadoras que mandan datos y sus tokens |
-| `GET /api/agent/state?source=`, `POST /api/agent/batches` | Modo servidor, con token de dispositivo: lo que el agente necesita y sus lotes |
+| `GET /api/agent/state?source=`, `POST /api/agent/batches`, `POST /api/agent/report` | Modo servidor, con token de dispositivo: lo que el agente necesita, sus lotes y las fuentes que no pudo leer |
 | `GET /api/contents` | Juegos y videos con su tiempo, sesiones y tarjetas |
 | `GET /api/contents/:id` | La ficha de un contenido |
 | `PUT /api/contents/:id/cover` | Guarda la imagen enviada (PNG, JPEG, WebP o GIF, hasta 5 MB) como portada elegida |

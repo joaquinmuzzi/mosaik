@@ -8,7 +8,8 @@ import { type Database, openDatabase } from "../src/db/database.ts";
 import { applyMigrations } from "../src/db/migrate.ts";
 import { FakeAnki } from "./fake-anki.ts";
 import { FakeGsm, type LineInput } from "./fake-gsm.ts";
-import { silentLogger, tempDir } from "./helpers.ts";
+import { silentLogger, tempDir, testConfig } from "./helpers.ts";
+import { applyAgentBatch } from "../src/api/agent.ts";
 
 const NOW = 1_794_600_000_000;
 const TZ = "America/Buenos_Aires";
@@ -249,5 +250,41 @@ describe("Anki batches", () => {
     const before = ANKI_TABLES.map((table) => dump(db, table));
     applyAnki(db, again, { cursor: first.cursor ?? null, refoldDecks: [REFOLD], now: NOW + 1 });
     expect(ANKI_TABLES.map((table) => dump(db, table))).toEqual(before);
+  });
+});
+
+describe("GSM settings per computer", () => {
+  it("counts each computer's lines with that computer's session gap, also when another one sends", () => {
+    const db = freshDb();
+    const config = testConfig();
+    // The same rhythm on both: a line every 10 s, with a 2-minute pause in the middle
+    const lines = (prefix: string, gameId: string) =>
+      [0, 10, 20, 140, 150].map((offset, index) =>
+        line(`${prefix}${index}`, offset, { gameId, gameName: `Spiel ${gameId}` }),
+      );
+    const principal = fakeGsm("game-p", "Spiel game-p", lines("p", "game-p"));
+    const notebook = fakeGsm("game-n", "Spiel game-n", lines("n", "game-n"));
+    // On the notebook GSM cuts a session after a 60 s gap; on the principal computer, after 30 minutes
+    notebook.writeConfig({ session_gap_seconds: 60 });
+
+    const sessionsOf = (device: string) =>
+      (db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE device = ?").get(device) as { n: number }).n;
+    applyAgentBatch(db, config, "notebook", readGsm(where(notebook), knownGsm(db, "notebook"), TZ), NOW);
+    applyAgentBatch(db, config, "principal", readGsm(where(principal), knownGsm(db, "principal"), TZ), NOW);
+    expect({ principal: sessionsOf("principal"), notebook: sessionsOf("notebook") }).toEqual({
+      principal: 1,
+      notebook: 2,
+    });
+
+    // The principal computer changes its own settings: the notebook's sessions stay as its GSM says
+    principal.writeConfig({ session_gap_seconds: 300 });
+    applyAgentBatch(
+      db,
+      config,
+      "principal",
+      readGsm(where(principal), knownGsm(db, "principal"), TZ),
+      NOW + 1,
+    );
+    expect(sessionsOf("notebook")).toBe(2);
   });
 });

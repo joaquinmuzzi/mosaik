@@ -19,6 +19,7 @@ import type {
 import { dayKey } from "@mosaik/shared";
 import type { Database } from "../db/database.ts";
 import type { DashboardOptions } from "./dashboard.ts";
+import { gsmContentAliases } from "../derive/gsm.ts";
 
 interface ContentRow {
   id: string;
@@ -87,6 +88,12 @@ function summarize(
       }[]
     ).map((row) => [row.content_id, row]),
   );
+  // A game read on several computers is one content; its cover may be under another computer's id
+  for (const [contentId, others] of gsmContentAliases(db)) {
+    if (stored.has(contentId)) continue;
+    const found = others.find((other) => stored.has(other));
+    if (found) stored.set(contentId, stored.get(found)!);
+  }
   const sessions = new Map<
     string,
     { seconds: number; count: number; chars: number; first: number; last: number }

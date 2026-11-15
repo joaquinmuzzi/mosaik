@@ -11,6 +11,9 @@ describe("loadConfig", () => {
       port: 7300,
       publicUrl: null,
       setupToken: null,
+      serverUrl: null,
+      deviceToken: null,
+      outboxDir: join("C:\\Local", "Mosaik", "outbox"),
       dbPath: join("C:\\Local", "Mosaik", "mosaik.db"),
       gsmDbPath: null,
       ankiConnectUrl: "http://127.0.0.1:8765",
@@ -103,5 +106,37 @@ describe("loadConfig", () => {
       publicUrl: null,
       setupToken: null,
     });
+  });
+
+  it("in agent mode needs the server and a device token", () => {
+    const token = "mkd_" + "a".repeat(43);
+    const config = loadConfig({
+      MOSAIK_MODE: "agent",
+      SERVER_URL: "https://mosaik.example.app/x",
+      DEVICE_TOKEN: token,
+    });
+    expect(config).toMatchObject({
+      mode: "agent",
+      serverUrl: "https://mosaik.example.app",
+      deviceToken: token,
+    });
+    expect(() => loadConfig({ MOSAIK_MODE: "agent", DEVICE_TOKEN: token })).toThrow(/SERVER_URL: required/);
+    expect(() => loadConfig({ MOSAIK_MODE: "agent", SERVER_URL: "https://a.app" })).toThrow(
+      /DEVICE_TOKEN: required/,
+    );
+    expect(() =>
+      loadConfig({ MOSAIK_MODE: "agent", SERVER_URL: "http://a.app", DEVICE_TOKEN: token }),
+    ).toThrow(/must be https/);
+    expect(() =>
+      loadConfig({ MOSAIK_MODE: "agent", SERVER_URL: "https://a.app", DEVICE_TOKEN: "nope" }),
+    ).toThrow(/DEVICE_TOKEN/);
+    expect(
+      loadConfig({
+        MOSAIK_MODE: "agent",
+        SERVER_URL: "https://a.app",
+        DEVICE_TOKEN: token,
+        AGENT_OUTBOX: "D:\\out",
+      }).outboxDir,
+    ).toBe("D:\\out");
   });
 });

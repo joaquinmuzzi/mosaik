@@ -6,6 +6,7 @@
  */
 import { createHash } from "node:crypto";
 import type { Database } from "../db/database.ts";
+import { gsmContentAliases } from "../derive/gsm.ts";
 
 export interface Cover {
   mime: string;
@@ -19,9 +20,14 @@ export async function getCover(
   contentId: string,
   options: { youtubeThumbnails: boolean; fetchImpl?: typeof fetch; now?: () => number },
 ): Promise<Cover | null> {
-  const stored = db.prepare("SELECT mime, data FROM covers WHERE content_id = ?").get(contentId) as
-    Cover | undefined;
+  const read = db.prepare("SELECT mime, data FROM covers WHERE content_id = ?");
+  const stored = read.get(contentId) as Cover | undefined;
   if (stored) return stored;
+  // The same game from another computer may have brought the cover under its own id
+  for (const alias of gsmContentAliases(db).get(contentId) ?? []) {
+    const other = read.get(alias) as Cover | undefined;
+    if (other) return other;
+  }
 
   const video = /^yt:([A-Za-z0-9_-]{11})$/.exec(contentId);
   if (!video || !options.youtubeThumbnails) return null;

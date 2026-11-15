@@ -7,6 +7,8 @@
 # The task runs the built hub (packages/hub/dist) with no window ("conhost --headless"), in this folder
 # (so it reads .env), writing its logs to %LOCALAPPDATA%\Mosaik\hub.log. It needs no administrator
 # rights. After updating Mosaik, run "npm run autostart:install" again to rebuild.
+# With MOSAIK_MODE=agent in .env the same task runs the agent instead: it sends this computer's Anki and
+# GSM to the server in SERVER_URL, and has no dashboard of its own.
 # Kept ASCII-only: Windows PowerShell 5.1 reads scripts without a BOM in the system code page.
 
 param(
@@ -20,6 +22,18 @@ $Root = Split-Path -Parent $PSScriptRoot
 $Entry = Join-Path $Root "packages\hub\dist\main.js"
 $LogFile = Join-Path $env:LOCALAPPDATA "Mosaik\hub.log"
 $User = "$env:USERDOMAIN\$env:USERNAME"
+
+# A setting from .env, or $default
+function Get-EnvValue([string]$name, [string]$default) {
+  $envFile = Join-Path $Root ".env"
+  if (Test-Path $envFile) {
+    $line = Get-Content $envFile | Where-Object { $_ -match "^\s*$name\s*=\s*(\S+)\s*$" } | Select-Object -Last 1
+    if ($line -and $line -match '=\s*(\S+)\s*$') { return $Matches[1] }
+  }
+  return $default
+}
+
+$Mode = Get-EnvValue "MOSAIK_MODE" "local"
 
 function Get-HubPort {
   $port = 7300
@@ -54,10 +68,14 @@ switch ($Action) {
     $principal = New-ScheduledTaskPrincipal -UserId $User -LogonType Interactive -RunLevel Limited
     Register-ScheduledTask -TaskName $TaskName -Action $taskAction -Trigger $trigger -Settings $settings `
       -Principal $principal -Force `
-      -Description "Mosaik: local hub of language-learning stats (http://127.0.0.1:$(Get-HubPort)). Logs: $LogFile" | Out-Null
-    Write-Output "Task '$TaskName' installed: the hub will start when you log in."
+      -Description $(if ($Mode -eq "agent") { "Mosaik agent: sends this computer's Anki and GSM to $(Get-EnvValue 'SERVER_URL' '?'). Logs: $LogFile" } else { "Mosaik: local hub of language-learning stats (http://127.0.0.1:$(Get-HubPort)). Logs: $LogFile" }) | Out-Null
+    if ($Mode -eq "agent") {
+      Write-Output "Task '$TaskName' installed: the agent will start when you log in and send to $(Get-EnvValue 'SERVER_URL' '?')."
+    } else {
+      Write-Output "Task '$TaskName' installed: the hub will start when you log in."
+    }
     Write-Output "Start it now with:  Start-ScheduledTask -TaskName $TaskName"
-    if (Test-Hub) { Write-Output "Note: a hub already answers on port $(Get-HubPort) (npm run dev?). Stop it before starting the task." }
+    if ($Mode -ne "agent" -and (Test-Hub)) { Write-Output "Note: a hub already answers on port $(Get-HubPort) (npm run dev?). Stop it before starting the task." }
   }
   "uninstall" {
     $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
@@ -75,7 +93,13 @@ switch ($Action) {
       Write-Output "Task '$TaskName': $($task.State). Last run: $($info.LastRunTime), result $($info.LastTaskResult)."
       Write-Output "Runs: $($task.Actions[0].Execute) $($task.Actions[0].Arguments)"
     }
-    if (Test-Hub) { Write-Output "The hub answers on http://127.0.0.1:$(Get-HubPort)." } else { Write-Output "No hub answers on port $(Get-HubPort)." }
+    if ($Mode -eq "agent") {
+      Write-Output "Mode: agent, sending to $(Get-EnvValue 'SERVER_URL' '?')."
+      if (Test-Path $LogFile) {
+        $last = Get-Content $LogFile -Tail 1
+        if ($last) { Write-Output "Last log line: $last" }
+      }
+    } elseif (Test-Hub) { Write-Output "The hub answers on http://127.0.0.1:$(Get-HubPort)." } else { Write-Output "No hub answers on port $(Get-HubPort)." }
     Write-Output "Logs: $LogFile"
   }
 }

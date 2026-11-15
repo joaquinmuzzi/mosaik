@@ -5,10 +5,16 @@
  */
 import type { AgentState, AnkiKnownJson, ConnectorBatch, GsmKnownJson } from "@mosaik/shared";
 import type { Config } from "../config.ts";
-import { type AnkiKnown, applyAnki, knownAnki } from "../connectors/anki/connector.ts";
+import { type AnkiKnown, applyAnki, knownAnki, parseCursor } from "../connectors/anki/connector.ts";
 import { type GsmKnown, applyGsm, knownGsm } from "../connectors/gsm/connector.ts";
-import { getConnectorState, markRunStarted, markRunSucceeded } from "../connectors/state.ts";
-import type { ConnectorResult } from "../connectors/types.ts";
+import {
+  getConnectorState,
+  listConnectorStates,
+  markRunFailed,
+  markRunStarted,
+  markRunSucceeded,
+} from "../connectors/state.ts";
+import type { ConnectorResult, JsonValue } from "../connectors/types.ts";
 import type { Database } from "../db/database.ts";
 
 export const AGENT_BODY_LIMIT = 64 * 1024 * 1024;
@@ -45,12 +51,38 @@ export const ankiKnownFromJson = (json: AnkiKnownJson): AnkiKnown => ({
   cards: new Map(json.cards.map(([id, mod, deck, removed]) => [id, { mod, deck, removed }])),
 });
 
+/**
+ * Anki's collection is the same on every computer, so its cursor is too: the last review id per deck that
+ * any computer sent. A new computer starts where the others are, instead of sending every review again.
+ */
+export function sharedAnkiCursor(db: Database): JsonValue | null {
+  const reviews: Record<string, number> = {};
+  let any = false;
+  for (const state of listConnectorStates(db)) {
+    if (state.source !== "anki" || state.cursor === null) continue;
+    any = true;
+    for (const [deck, id] of Object.entries(parseCursor(state.cursor).reviews)) {
+      reviews[deck] = Math.max(reviews[deck] ?? 0, id);
+    }
+  }
+  return any ? { reviews } : null;
+}
+
 export function agentState(db: Database, device: string, source: "gsm" | "anki"): AgentState {
-  const cursor = getConnectorState(db, source, device)?.cursor ?? null;
   return source === "gsm"
-    ? { source, device, cursor, known: gsmKnownToJson(knownGsm(db, device)) }
+    ? {
+        source,
+        device,
+        cursor: getConnectorState(db, source, device)?.cursor ?? null,
+        known: gsmKnownToJson(knownGsm(db, device)),
+      }
     : // Anki is the same collection everywhere: every device knows all of it
-      { source, device, cursor, known: ankiKnownToJson(knownAnki(db)) };
+      { source, device, cursor: sharedAnkiCursor(db), known: ankiKnownToJson(knownAnki(db)) };
+}
+
+/** An agent could not read a source (Anki closed, GSM missing): the dashboard shows it for that computer. */
+export function reportAgentError(db: Database, device: string, source: "gsm" | "anki", error: string): void {
+  markRunFailed(db, source, error.slice(0, 500), device);
 }
 
 /** Applies a batch as `device`, with that device's cursor, and records the run in its state. */
@@ -62,7 +94,10 @@ export function applyAgentBatch(
   now: number,
 ): ConnectorResult {
   markRunStarted(db, batch.source, now, device);
-  const cursor = getConnectorState(db, batch.source, device)?.cursor ?? null;
+  const cursor =
+    batch.source === "anki"
+      ? sharedAnkiCursor(db)
+      : (getConnectorState(db, batch.source, device)?.cursor ?? null);
   const result =
     batch.source === "gsm"
       ? applyGsm(db, batch, {

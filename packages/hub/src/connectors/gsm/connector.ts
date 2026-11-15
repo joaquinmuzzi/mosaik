@@ -23,6 +23,7 @@ import { GSM_SOURCE, gsmContentId, rebuildGsm } from "../../derive/gsm.ts";
 import type { Connector, ConnectorResult, JsonValue } from "../types.ts";
 import { punctuationRegex } from "./reading-time.ts";
 import {
+  DEFAULT_GSM_STATS,
   type GsmLocation,
   decodeCover,
   lineVersion,
@@ -251,13 +252,25 @@ export function applyGsm(
     if (!changed) {
       return null;
     }
-    const derived = rebuildGsm(db, {
-      sessionGapSeconds: settings.sessionGapSeconds,
+    // Each computer's lines count with its own GSM settings: this one's just arrived, the others' are in
+    // the cursor each one left
+    const others = new Map<string, GsmSettings>();
+    for (const row of db
+      .prepare("SELECT device, cursor FROM connector_state WHERE source = 'gsm' AND device != ?")
+      .all(device) as { device: string; cursor: string | null }[]) {
+      const saved = cursorSettings(row.cursor ? (JSON.parse(row.cursor) as JsonValue) : null);
+      if (saved) others.set(row.device, saved);
+    }
+    const deriveOptions = (chosen: GsmSettings) => ({
+      sessionGapSeconds: chosen.sessionGapSeconds,
       text: {
-        punctuation: punctuationRegex(settings.extraPunctuationRegex),
-        regexOutRepetitions: settings.regexOutRepetitions,
+        punctuation: punctuationRegex(chosen.extraPunctuationRegex),
+        regexOutRepetitions: chosen.regexOutRepetitions,
       },
     });
+    const derived = rebuildGsm(db, (lineDevice) =>
+      deriveOptions(lineDevice === device ? settings : (others.get(lineDevice) ?? DEFAULT_GSM_STATS)),
+    );
     // New note_ids change where cards come from
     rebuildCards(db, attribution);
     return derived;

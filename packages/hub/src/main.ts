@@ -1,5 +1,6 @@
 /**
- * Starts the hub: configuration, database (with its migrations), scheduler and server.
+ * Starts the hub: configuration, database (with its migrations), scheduler and server. In agent mode
+ * (MOSAIK_MODE=agent) it starts the agent instead, which has no database and no server.
  * `--pretty` prints readable logs instead of JSON lines (used by `npm run dev`).
  * `--log-file=<path>` writes the JSON logs to that file instead, for when the hub runs in the
  * background (started with Windows, see scripts/autostart.ps1).
@@ -7,6 +8,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type { FastifyServerOptions } from "fastify";
+import { agentLogger, runAgent } from "./agent-main.ts";
 import { ConfigError, loadConfig } from "./config.ts";
 import { createConnectors } from "./connectors/index.ts";
 import type { Logger } from "./connectors/types.ts";
@@ -20,6 +22,10 @@ async function main(): Promise<void> {
   const pretty = process.argv.includes("--pretty");
   const logFile = process.argv.find((arg) => arg.startsWith("--log-file="))?.slice("--log-file=".length);
   if (logFile) mkdirSync(dirname(logFile), { recursive: true });
+  if (config.mode === "agent") {
+    runAgent(config, agentLogger(config, pretty, logFile));
+    return;
+  }
   const logger: FastifyServerOptions["logger"] = pretty
     ? {
         level: config.logLevel,

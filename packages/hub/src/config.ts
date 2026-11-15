@@ -4,14 +4,16 @@
  *
  * `MOSAIK_MODE` picks how it runs: `local` (the default) listens on 127.0.0.1 only, reads Anki and GSM
  * itself and has no login; `server` is for a server on the internet (Railway): it listens on all
- * interfaces, reads no sources (agents send them), and asks for a login.
+ * interfaces, reads no sources (agents send them), and asks for a login; `agent` runs on each computer
+ * where immersion happens: it reads Anki and GSM and sends them to the server at SERVER_URL, with the
+ * device token DEVICE_TOKEN; it has no database and no dashboard.
  */
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { isValidTimeZone } from "@mosaik/shared";
 import { z } from "zod";
 
-export type Mode = "local" | "server";
+export type Mode = "local" | "server" | "agent";
 
 export interface Config {
   mode: Mode;
@@ -22,6 +24,12 @@ export interface Config {
   publicUrl: string | null;
   /** Server mode: the one-time secret that creates the account. */
   setupToken: string | null;
+  /** Agent mode: the server it sends to. */
+  serverUrl: string | null;
+  /** Agent mode: this computer's token, created in the server's Fuentes → Dispositivos. */
+  deviceToken: string | null;
+  /** Agent mode: where batches wait while the server cannot be reached. */
+  outboxDir: string;
   dbPath: string;
   /** GSM_DB_PATH, or `null` to find GameSentenceMiner's database where GSM keeps it. */
   gsmDbPath: string | null;
@@ -73,12 +81,15 @@ const optional = <T extends z.ZodType>(schema: T) =>
 const port = z.coerce.number().int().min(1).max(65_535);
 
 const envSchema = z.object({
-  MOSAIK_MODE: optional(z.enum(["local", "server"])),
+  MOSAIK_MODE: optional(z.enum(["local", "server", "agent"])),
   HUB_PORT: optional(port),
   // Set by Railway and most hosts; used in server mode only
   PORT: optional(port),
   PUBLIC_URL: optional(z.url({ protocol: /^https?$/ })),
   SETUP_TOKEN: optional(z.string().min(16, "must be at least 16 characters")),
+  SERVER_URL: optional(z.url({ protocol: /^https?$/ })),
+  DEVICE_TOKEN: optional(z.string().regex(/^mkd_[\w-]{20,}$/, "must be a device token (mkd_…)")),
+  AGENT_OUTBOX: optional(z.string()),
   HUB_DB_PATH: optional(z.string()),
   GSM_DB_PATH: optional(z.string()),
   ANKICONNECT_URL: optional(z.url({ protocol: /^https?$/ })),
@@ -105,6 +116,18 @@ export function loadConfig(env: Env = process.env, platform: NodeJS.Platform = p
   }
   const values = parsed.data;
   const mode = values.MOSAIK_MODE ?? "local";
+  const dbPath = values.HUB_DB_PATH ?? defaultDbPath(env, platform);
+  const problem = (text: string) => new ConfigError(`Invalid configuration:\n  ${text}`);
+  /** Plain http only to this computer: everything else must be https. */
+  const local = (url: URL) => url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  let serverUrl: string | null = null;
+  if (mode === "agent") {
+    if (!values.SERVER_URL) throw problem("SERVER_URL: required in agent mode");
+    if (!values.DEVICE_TOKEN) throw problem("DEVICE_TOKEN: required in agent mode");
+    const url = new URL(values.SERVER_URL);
+    if (url.protocol !== "https:" && !local(url)) throw problem("SERVER_URL: must be https:// in agent mode");
+    serverUrl = url.origin;
+  }
   let publicUrl: string | null = null;
   if (mode === "server") {
     if (!values.PUBLIC_URL) {
@@ -124,7 +147,10 @@ export function loadConfig(env: Env = process.env, platform: NodeJS.Platform = p
     port: (mode === "server" ? values.PORT : undefined) ?? values.HUB_PORT ?? 7300,
     publicUrl,
     setupToken: mode === "server" ? (values.SETUP_TOKEN ?? null) : null,
-    dbPath: values.HUB_DB_PATH ?? defaultDbPath(env, platform),
+    serverUrl,
+    deviceToken: mode === "agent" ? (values.DEVICE_TOKEN ?? null) : null,
+    dbPath,
+    outboxDir: values.AGENT_OUTBOX ?? join(dirname(dbPath), "outbox"),
     gsmDbPath: values.GSM_DB_PATH ?? null,
     ankiConnectUrl: values.ANKICONNECT_URL ?? "http://127.0.0.1:8765",
     ankiDecks: values.ANKI_DECKS ?? DEFAULT_ANKI_DECKS,

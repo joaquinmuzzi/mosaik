@@ -30,7 +30,7 @@ import type {
   StatsResponse,
 } from "@mosaik/shared";
 import { DEFAULT_DEVICE, connectorBatchSchema, dayKey, deviceSchema } from "@mosaik/shared";
-import { AGENT_BODY_LIMIT, agentState, applyAgentBatch } from "./api/agent.ts";
+import { AGENT_BODY_LIMIT, agentState, applyAgentBatch, reportAgentError } from "./api/agent.ts";
 import {
   LoginLimiter,
   MIN_PASSWORD_LENGTH,
@@ -345,6 +345,16 @@ export async function buildServer({
       const result = applyAgentBatch(db, config, device, parsed.data, Date.now());
       const response: AgentBatchResponse = { ok: true, device, summary: result.summary ?? null };
       return response;
+    });
+
+    // A source the agent could not read (Anki closed, GSM missing): shown in Fuentes for that computer
+    app.post("/api/agent/report", async (request, reply) => {
+      const body = (request.body ?? {}) as { source?: unknown; error?: unknown };
+      if ((body.source !== "gsm" && body.source !== "anki") || typeof body.error !== "string") {
+        return reply.code(400).send({ error: "invalid_report" });
+      }
+      reportAgentError(db, deviceOf.get(request)!, body.source, body.error);
+      return { ok: true };
     });
   }
 

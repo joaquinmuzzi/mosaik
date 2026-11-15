@@ -15,7 +15,7 @@ import { dayKey } from "@mosaik/shared";
 import { sourceTitleOf, wordOf } from "../connectors/anki/text.ts";
 import type { Database } from "../db/database.ts";
 import { deuchanTitlesByDay, normalizeTitle, videoContentId, youtubeVideoIdOf } from "./deuchan.ts";
-import { gsmContentId, parseNoteIds } from "./gsm.ts";
+import { gsmContentFor, gsmGameAliases, parseNoteIds } from "./gsm.ts";
 
 export type CardOrigin = "gsm" | "youtube" | "refold-1k" | "unknown";
 
@@ -102,6 +102,7 @@ export function attributeOrigin(
 /** Reads what GSM and Deuchan know about where notes were mined. */
 export function loadAttributionContext(db: Database, timeZone: string): AttributionContext {
   const gsmLines = new Map<number, { contentId: string; lineId: string }>();
+  const aliases = gsmGameAliases(db);
   const rows = db
     .prepare(
       `SELECT id, game_id, game_name, note_ids FROM raw_gsm_lines
@@ -114,7 +115,7 @@ export function loadAttributionContext(db: Database, timeZone: string): Attribut
       // The first line a note was mined from wins
       if (!gsmLines.has(noteId)) {
         gsmLines.set(noteId, {
-          contentId: gsmContentId(row.game_id, row.game_name),
+          contentId: gsmContentFor(aliases, row.game_id, row.game_name),
           lineId: `gsm:${row.id}`,
         });
       }

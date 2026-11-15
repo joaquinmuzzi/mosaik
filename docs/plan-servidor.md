@@ -116,6 +116,21 @@ Cada fase termina con tests en verde y sus criterios cumplidos, como las anterio
 - *Criterio:* tests con un servidor de prueba: lote mandado, servidor caído (queda en `outbox` y entra después),
   dos agentes con el mismo Anki (sin duplicados), dos PC con el mismo juego (un contenido).
 
+- *Resultado (2026-11-15):* `src/agent.ts` (cada pasada: manda lo que quedó en el outbox; para Anki y GSM pide
+  su estado, lee y manda; sin servidor no lee nada y no pierde nada, porque las fuentes guardan sus datos; una
+  fuente que no se puede leer se informa con `POST /api/agent/report` y se ve en Fuentes; un token rechazado lo
+  frena) y `src/agent-main.ts`; `MOSAIK_MODE=agent` con `SERVER_URL`, `DEVICE_TOKEN` y `AGENT_OUTBOX`.
+  `scripts/autostart.ps1` lee el modo de `.env`. En el servidor: el mismo juego de dos computadoras (mismo
+  título, otro id de GSM) es un solo contenido, con la portada que tenga cualquiera; cada computadora cuenta con
+  su configuración de GSM; Anki tiene un cursor compartido. Tests nuevos (`test/agent.test.ts` y la
+  configuración por computadora en `test/batches.test.ts`). Prueba real: el agente de verdad contra un servidor
+  de prueba, cada minuto, con el Anki y el GSM reales; al apagar el servidor anotó "no se puede llegar" y al
+  volver siguió solo.
+- *No hecho:* `AGENT_SEND_TEXT=false`. El tiempo de lectura de GSM se calcula con los caracteres de cada línea,
+  así que mandar líneas sin texto rompe la cuenta; hacerlo bien pide mandar el conteo en vez del texto. Como se
+  decidió que el texto sube, queda para cuando haga falta.
+- *Unir y separar contenidos:* unir por título es automático; separarlos a mano todavía no existe.
+
 **Fase 10 — Despliegue en Railway**
 - Servicio con Node 24 (Dockerfile o Nixpacks), volumen en `/data` para la base, variables (`MOSAIK_MODE`,
   `PUBLIC_URL`, `SETUP_TOKEN`, `TZ_NAME`, …), healthcheck en `/api/health`, una sola réplica (SQLite).

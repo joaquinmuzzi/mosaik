@@ -76,6 +76,62 @@ function titleOf(game: Record<string, unknown>): string | null {
   return null;
 }
 
+/** A title for comparing: case, width, spacing and a leading "(3) " counter do not matter. */
+const sameTitleKey = (title: string) =>
+  title
+    .normalize("NFKC")
+    .replace(/^\(\d+\)\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase();
+
+/**
+ * The same game read on two computers: GSM gives it a different id on each, so games are grouped by title.
+ * Returns, per game id, the id of the game that stands for its group (the hub's own computer's, or else
+ * the first one synced). Games without a title stand for themselves.
+ */
+export function gsmGameAliases(db: Database): Map<string, string> {
+  const games = db
+    .prepare(
+      `SELECT id, payload FROM raw_gsm_games
+       ORDER BY device = 'principal' DESC, synced_at, device, id`,
+    )
+    .all() as unknown as GameRow[];
+  const byTitle = new Map<string, string>();
+  const aliases = new Map<string, string>();
+  for (const { id, payload } of games) {
+    const title = titleOf(JSON.parse(payload) as Record<string, unknown>);
+    if (aliases.has(id)) continue;
+    if (!title) {
+      aliases.set(id, id);
+      continue;
+    }
+    const key = sameTitleKey(title);
+    const lead = byTitle.get(key) ?? id;
+    byTitle.set(key, lead);
+    aliases.set(id, lead);
+  }
+  return aliases;
+}
+
+/** The content a line belongs to, with the same game of every computer as one content. */
+export function gsmContentFor(aliases: Map<string, string>, gameId: string | null, gameName: string | null) {
+  return gameId && gameId.trim() !== ""
+    ? gsmContentId(aliases.get(gameId) ?? gameId, null)
+    : gsmContentId(null, gameName);
+}
+
+/** Content id → the other content ids of the same game (for covers stored under another computer's id). */
+export function gsmContentAliases(db: Database): Map<string, string[]> {
+  const others = new Map<string, string[]>();
+  for (const [gameId, lead] of gsmGameAliases(db)) {
+    if (gameId === lead) continue;
+    const key = gsmContentId(lead, null);
+    others.set(key, [...(others.get(key) ?? []), gsmContentId(gameId, null)]);
+  }
+  return others;
+}
+
 export interface GsmDeriveResult {
   contents: number;
   sessions: number;
@@ -83,13 +139,24 @@ export interface GsmDeriveResult {
   seconds: number;
 }
 
-/** Rebuilds the GSM rows of the common model. Call it inside a transaction. */
-export function rebuildGsm(db: Database, { sessionGapSeconds, text }: GsmDeriveOptions): GsmDeriveResult {
+/**
+ * Rebuilds the GSM rows of the common model. Call it inside a transaction. Each computer's lines are
+ * counted with that computer's GSM settings (`optionsFor`).
+ */
+export function rebuildGsm(
+  db: Database,
+  optionsFor: GsmDeriveOptions | ((device: string) => GsmDeriveOptions),
+): GsmDeriveResult {
+  const settingsOf = typeof optionsFor === "function" ? optionsFor : () => optionsFor;
   db.prepare("DELETE FROM lines WHERE source = ?").run(GSM_SOURCE);
   db.prepare("DELETE FROM sessions WHERE source = ?").run(GSM_SOURCE);
   db.prepare("DELETE FROM contents WHERE source = ?").run(GSM_SOURCE);
 
-  const games = db.prepare("SELECT id, payload FROM raw_gsm_games").all() as unknown as GameRow[];
+  const aliases = gsmGameAliases(db);
+  // One row per game: the game that stands for its group (see gsmGameAliases)
+  const games = (db.prepare("SELECT id, payload FROM raw_gsm_games").all() as unknown as GameRow[]).filter(
+    ({ id }) => (aliases.get(id) ?? id) === id,
+  );
   // Breaks belong to the computer they were marked on
   const breaksByDevice = new Map<string, number[]>();
   for (const row of db.prepare("SELECT device, timestamp FROM raw_gsm_breaks ORDER BY timestamp").all() as {
@@ -136,8 +203,8 @@ export function rebuildGsm(db: Database, { sessionGapSeconds, text }: GsmDeriveO
     { contentId: string; device: string; lines: (RawLine & { chars: number })[] }
   >();
   for (const line of raw) {
-    const contentId = gsmContentId(line.game_id, line.game_name);
-    const chars = countCharacters(cleanTextForStats(line.line_text, text));
+    const contentId = gsmContentFor(aliases, line.game_id, line.game_name);
+    const chars = countCharacters(cleanTextForStats(line.line_text, settingsOf(line.device).text));
     const key = `${line.device}\u0000${contentId}`;
     let group = groups.get(key);
     if (!group) {
@@ -167,7 +234,10 @@ export function rebuildGsm(db: Database, { sessionGapSeconds, text }: GsmDeriveO
   let sessionCount = 0;
   let totalSeconds = 0;
   for (const { contentId, device, lines: group } of groups.values()) {
-    const timeline = readingTimeline(group, { sessionGapSeconds, breaks: breaksOf(device) });
+    const timeline = readingTimeline(group, {
+      sessionGapSeconds: settingsOf(device).sessionGapSeconds,
+      breaks: breaksOf(device),
+    });
     for (const session of timeline.sessions) {
       const sessionLines = timeline.lines.slice(session.first, session.last + 1);
       const first = sessionLines[0]!;
