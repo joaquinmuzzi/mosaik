@@ -155,6 +155,20 @@ export interface ContentSummary {
   lastDay: string | null;
   /** URL of the cover image (GSM's game image, or a YouTube thumbnail if turned on), or null. */
   cover: string | null;
+  /** Where the stored cover came from; null when there is none yet. */
+  coverSource: CoverSource | null;
+}
+
+/** GSM's game image, a YouTube thumbnail, an image the user uploaded, or one they picked on Steam. */
+export type CoverSource = "gsm" | "youtube" | "manual" | "steam";
+
+/** A game found on Steam, offered as a cover. */
+export interface SteamCandidate {
+  appId: number;
+  name: string;
+  /** Portrait cover (600×900); some games only have `header`. */
+  image: string;
+  header: string;
 }
 
 export interface ContentsResponse {

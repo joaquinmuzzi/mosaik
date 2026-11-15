@@ -1,20 +1,31 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { listContents } from "../src/api/contents.ts";
-import { getCover } from "../src/api/covers.ts";
+import {
+  MAX_COVER_BYTES,
+  getCover,
+  imageType,
+  removeManualCover,
+  setManualCover,
+} from "../src/api/covers.ts";
+import { searchSteam, setSteamCover } from "../src/api/steam.ts";
 import { createGsmConnector } from "../src/connectors/gsm/connector.ts";
 import { decodeCover } from "../src/connectors/gsm/source.ts";
 import { type Database, openDatabase } from "../src/db/database.ts";
 import { applyMigrations } from "../src/db/migrate.ts";
 import { createScheduler } from "../src/scheduler.ts";
+import { buildServer } from "../src/server.ts";
 import { FakeGsm } from "./fake-gsm.ts";
-import { silentLogger, tempDir } from "./helpers.ts";
+import { silentLogger, tempDir, testConfig } from "./helpers.ts";
 
 const OPTIONS = { timeZone: "America/Buenos_Aires", cutoffHour: 4, targetLanguage: "de" };
 // A 1x1 PNG
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
 let db: Database;
-afterEach(() => db?.close());
+afterEach(() => {
+  db?.close();
+  db = undefined as unknown as Database;
+});
 
 function setup() {
   db = openDatabase(":memory:");
@@ -114,5 +125,138 @@ describe("YouTube thumbnails", () => {
     expect(listContents(db, { ...OPTIONS, youtubeThumbnails: true }).contents[0]?.cover).toBe(
       "/api/contents/yt%3Aaaaaaaaaaaa/cover",
     );
+  });
+});
+
+describe("covers the user chooses", () => {
+  const png = () => new Uint8Array(Buffer.from(PNG, "base64"));
+
+  it("are kept, win over GSM's image and survive GSM syncs, and removing one brings GSM's back", async () => {
+    setup();
+    const gsm = new FakeGsm(tempDir());
+    gsm.addGame("g", "Beispiel Spiel");
+    gsm.write((writer) =>
+      writer.prepare("UPDATE games SET image = ? WHERE id = 'g'").run(`data:image/png;base64,${PNG}`),
+    );
+    const scheduler = createScheduler({ db, intervalMs: 60_000, log: silentLogger });
+    scheduler.register(
+      createGsmConnector({
+        db,
+        locate: () => ({ dbPath: gsm.dbPath, dataDir: gsm.dataDir }),
+        attribution: { refoldDecks: [] },
+        timeZone: OPTIONS.timeZone,
+      }),
+    );
+    await scheduler.run("gsm");
+    expect(db.prepare("SELECT origin FROM covers WHERE content_id = 'gsm:g'").get()).toEqual({
+      origin: "gsm",
+    });
+
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+    expect(setManualCover(db, "gsm:g", jpeg)).toEqual({ ok: true });
+    await scheduler.run("gsm");
+    expect(await getCover(db, "gsm:g", { youtubeThumbnails: false })).toMatchObject({ mime: "image/jpeg" });
+
+    expect(removeManualCover(db, "gsm:g")).toBe(true);
+    await scheduler.run("gsm");
+    expect(await getCover(db, "gsm:g", { youtubeThumbnails: false })).toMatchObject({ mime: "image/png" });
+  });
+
+  it("must be an image of a known content, of 5 MB at most", () => {
+    setup();
+    db.prepare("INSERT INTO contents (id, source, kind, title) VALUES ('gsm:g', 'gsm', 'game', 'G')").run();
+    expect(setManualCover(db, "gsm:nope", png())).toMatchObject({ ok: false, status: 404 });
+    expect(setManualCover(db, "gsm:g", new TextEncoder().encode("<svg onload=alert(1)>"))).toMatchObject({
+      ok: false,
+      status: 400,
+    });
+    expect(setManualCover(db, "gsm:g", new Uint8Array(MAX_COVER_BYTES + 1))).toMatchObject({
+      ok: false,
+      status: 413,
+    });
+    expect(imageType(png())).toBe("image/png");
+  });
+
+  it("can be uploaded and removed through the API", async () => {
+    setup();
+    db.prepare("INSERT INTO contents (id, source, kind, title) VALUES ('gsm:g', 'gsm', 'game', 'G')").run();
+    const scheduler = createScheduler({ db, intervalMs: 60_000, log: silentLogger });
+    const app = await buildServer({ config: testConfig(), db, scheduler, webDistDir: tempDir() });
+    const headers = { host: "127.0.0.1:7300", origin: "http://127.0.0.1:5173" };
+    try {
+      const put = await app.inject({
+        method: "PUT",
+        url: "/api/contents/gsm%3Ag/cover",
+        headers: { ...headers, "content-type": "image/png" },
+        payload: Buffer.from(PNG, "base64"),
+      });
+      expect(put.statusCode).toBe(200);
+      const get = await app.inject({ method: "GET", url: "/api/contents/gsm%3Ag/cover", headers });
+      expect(get.headers["content-type"]).toBe("image/png");
+      expect(listContents(db, OPTIONS).contents).toEqual([]); // no time yet, so not listed
+      const removed = await app.inject({ method: "DELETE", url: "/api/contents/gsm%3Ag/cover", headers });
+      expect(removed.json()).toEqual({ removed: true });
+      // Another web page cannot change covers
+      const evil = await app.inject({
+        method: "PUT",
+        url: "/api/contents/gsm%3Ag/cover",
+        headers: { ...headers, origin: "https://evil.example", "content-type": "image/png" },
+        payload: Buffer.from(PNG, "base64"),
+      });
+      expect(evil.statusCode).toBe(403);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe("Steam covers", () => {
+  const steam = (routes: Record<string, () => Response>) =>
+    vi.fn<typeof fetch>(async (input) => {
+      const url = String(input);
+      const key = Object.keys(routes).find((prefix) => url.startsWith(prefix));
+      return key ? routes[key]!() : new Response("", { status: 404 });
+    });
+
+  it("are searched by title, offering the portrait cover of each game", async () => {
+    const fetchImpl = steam({
+      "https://store.steampowered.com/api/storesearch/": () =>
+        Response.json({
+          total: 2,
+          items: [{ id: 787480, name: "Phoenix Wright: Ace Attorney Trilogy", type: "app" }],
+        }),
+    });
+    expect(await searchSteam("Phoenix Wright", fetchImpl)).toEqual([
+      {
+        appId: 787480,
+        name: "Phoenix Wright: Ace Attorney Trilogy",
+        image:
+          "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/787480/library_600x900.jpg",
+        header: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/787480/header.jpg",
+      },
+    ]);
+    expect(new URL(String(fetchImpl.mock.calls[0]![0])).searchParams.get("term")).toBe("Phoenix Wright");
+    expect(await searchSteam(" ", fetchImpl)).toEqual([]);
+  });
+
+  it("are downloaded and kept, falling back to the wide header when there is no portrait", async () => {
+    setup();
+    db.prepare("INSERT INTO contents (id, source, kind, title) VALUES ('gsm:g', 'gsm', 'game', 'G')").run();
+    const fetchImpl = steam({
+      "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/42/header.jpg": () =>
+        new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9]), {
+          headers: { "Content-Type": "image/jpeg" },
+        }),
+    });
+    expect(await setSteamCover(db, "gsm:g", 42, fetchImpl)).toEqual({ ok: true });
+    expect(db.prepare("SELECT origin, mime FROM covers WHERE content_id = 'gsm:g'").get()).toEqual({
+      origin: "steam",
+      mime: "image/jpeg",
+    });
+    expect(await setSteamCover(db, "gsm:g", 43, fetchImpl)).toMatchObject({
+      ok: false,
+      error: "no_steam_image",
+    });
+    expect(removeManualCover(db, "gsm:g")).toBe(true);
   });
 });

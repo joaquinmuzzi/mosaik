@@ -21,7 +21,8 @@ import type {
   SourcesResponse,
 } from "@mosaik/shared";
 import { contentDetail, listContents, searchLines } from "./api/contents.ts";
-import { getCover } from "./api/covers.ts";
+import { MAX_COVER_BYTES, getCover, removeManualCover, setManualCover } from "./api/covers.ts";
+import { searchSteam, setSteamCover } from "./api/steam.ts";
 import { ankiStats, dayDetail, isDay, overview } from "./api/dashboard.ts";
 import Fastify, { type FastifyInstance, type FastifyServerOptions, LogController } from "fastify";
 import type { Config } from "./config.ts";
@@ -164,6 +165,50 @@ export async function buildServer({
       .header("Cache-Control", "private, max-age=86400")
       .send(Buffer.from(cover.data));
   });
+
+  // A cover the user chose: the image itself is the body
+  app.addContentTypeParser(
+    /^image\//,
+    { parseAs: "buffer", bodyLimit: MAX_COVER_BYTES + 1024 },
+    (_request, body, done) => done(null, body),
+  );
+
+  app.put<{ Params: { id: string }; Body: Buffer }>("/api/contents/:id/cover", async (request, reply) => {
+    if (!Buffer.isBuffer(request.body)) {
+      return reply.code(415).send({ error: "unsupported_media_type", message: "Send the image itself" });
+    }
+    const result = setManualCover(db, request.params.id, new Uint8Array(request.body));
+    if (!result.ok) return reply.code(result.status).send({ error: result.error });
+    return { ok: true };
+  });
+
+  // Steam: searched only when the user asks, with the title they typed
+  app.get<{ Querystring: { q?: string } }>("/api/covers/steam", async (request, reply) => {
+    try {
+      return { results: await searchSteam(request.query.q ?? "") };
+    } catch (error) {
+      return reply.code(502).send({
+        error: "steam_unavailable",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  app.post<{ Params: { id: string }; Body: { appId?: unknown } }>(
+    "/api/contents/:id/cover/steam",
+    async (request, reply) => {
+      const appId = Number(request.body?.appId);
+      if (!Number.isSafeInteger(appId) || appId <= 0)
+        return reply.code(400).send({ error: "invalid_app_id" });
+      const result = await setSteamCover(db, request.params.id, appId);
+      if (!result.ok) return reply.code(result.status).send({ error: result.error });
+      return { ok: true };
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>("/api/contents/:id/cover", async (request) => ({
+    removed: removeManualCover(db, request.params.id),
+  }));
 
   app.get<{ Params: { id: string } }>("/api/contents/:id", async (request, reply) => {
     const detail = contentDetail(db, dashboard, request.params.id);

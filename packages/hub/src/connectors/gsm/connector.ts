@@ -140,12 +140,14 @@ export function createGsmConnector({ db, locate, attribution, timeZone }: GsmCon
           );
           for (const game of snapshot.games) insertGame.run(game.id, JSON.stringify(game), syncedAt);
         }
-        // Covers: rewritten only when an image changes; a game that lost its image loses its cover
+        // Covers: rewritten only when an image changes; a game that lost its image loses its cover. A cover
+        // the user chose is never touched.
         const coverEtag = db.prepare("SELECT etag FROM covers WHERE content_id = ?");
         const upsertCover = db.prepare(
-          `INSERT INTO covers (content_id, mime, data, etag, fetched_at) VALUES (?, ?, ?, ?, ?)
+          `INSERT INTO covers (content_id, mime, data, etag, fetched_at, origin) VALUES (?, ?, ?, ?, ?, 'gsm')
            ON CONFLICT (content_id) DO UPDATE SET mime = excluded.mime, data = excluded.data,
-             etag = excluded.etag, fetched_at = excluded.fetched_at`,
+             etag = excluded.etag, fetched_at = excluded.fetched_at
+           WHERE covers.origin = 'gsm'`,
         );
         for (const [gameId, image] of snapshot.covers) {
           const etag = createHash("sha1").update(image).digest("hex");
@@ -156,7 +158,7 @@ export function createGsmConnector({ db, locate, attribution, timeZone }: GsmCon
         }
         const keep = JSON.stringify([...snapshot.covers.keys()].map((gameId) => gsmContentId(gameId, null)));
         db.prepare(
-          "DELETE FROM covers WHERE content_id LIKE 'gsm:%' AND content_id NOT IN (SELECT value FROM json_each(?))",
+          "DELETE FROM covers WHERE origin = 'gsm' AND content_id NOT IN (SELECT value FROM json_each(?))",
         ).run(keep);
 
         const breaksBefore = (

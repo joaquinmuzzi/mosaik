@@ -9,6 +9,7 @@
  */
 import type {
   ContentDetailResponse,
+  CoverSource,
   ContentLine,
   ContentSummary,
   ContentsResponse,
@@ -77,10 +78,14 @@ function summarize(
   const day = (ts: number) => dayKey(ts, options.timeZone, options.cutoffHour);
   const videos = videoTotals(db);
   const mined = minedCounts(db);
-  const stored = new Set(
-    (db.prepare("SELECT content_id FROM covers").all() as { content_id: string }[]).map(
-      (row) => row.content_id,
-    ),
+  const stored = new Map(
+    (
+      db.prepare("SELECT content_id, etag, origin FROM covers").all() as {
+        content_id: string;
+        etag: string;
+        origin: CoverSource;
+      }[]
+    ).map((row) => [row.content_id, row]),
   );
   const sessions = new Map<
     string,
@@ -123,10 +128,13 @@ function summarize(
       cardsMined: mined.get(row.id) ?? 0,
       firstDay: days[0] ?? null,
       lastDay: days.at(-1) ?? null,
-      cover:
-        stored.has(row.id) || (row.kind === "video" && options.youtubeThumbnails === true)
+      // The version in the URL changes with the image, so a browser never shows an old one
+      cover: stored.has(row.id)
+        ? `/api/contents/${encodeURIComponent(row.id)}/cover?v=${stored.get(row.id)!.etag.slice(0, 12)}`
+        : row.kind === "video" && options.youtubeThumbnails === true
           ? `/api/contents/${encodeURIComponent(row.id)}/cover`
           : null,
+      coverSource: stored.get(row.id)?.origin ?? null,
     };
   });
 }
