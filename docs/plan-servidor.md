@@ -28,7 +28,7 @@ El modo `local` no se rompe: sigue siendo la forma por defecto y la que respeta 
 ## Decisiones (antes de empezar)
 
 1. **¿Suben las oraciones leídas?** El texto de cada línea de GSM es lo que alimenta el buscador y las tarjetas
-   con su oración. *Recomendado:* sí, porque el servidor es privado y con login. Cada agente tiene
+   con su oración. **Decidido (2026-11-15): sí suben**, porque el servidor es privado y con login. Cada agente tiene
    `AGENT_SEND_TEXT` (por defecto `true`): en `false` solo manda tiempos, conteos y IDs, y en el servidor el
    buscador no encuentra lo leído en esa PC.
 2. **¿Una cuenta o varias?** *Recomendado:* una sola (vos). Registro cerrado; la cuenta se crea una vez con un
