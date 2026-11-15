@@ -6,6 +6,14 @@
  * `getLatestReviewID` create the deck they are given when it does not exist; the connector checks
  * that a deck exists before asking for its reviews.
  */
+import {
+  type CardInfo,
+  type NoteInfo,
+  type ReviewRow,
+  cardInfoSchema,
+  noteInfoSchema,
+  reviewRowSchema,
+} from "@mosaik/shared";
 import { z } from "zod";
 
 /** The only actions Mosaik sends. */
@@ -59,53 +67,13 @@ export class AnkiConnectError extends Error {
 
 const envelopeSchema = z.object({ result: z.unknown(), error: z.string().nullable() });
 
-const noteInfoSchema = z.looseObject({
-  noteId: z.number().int(),
-  modelName: z.string(),
-  tags: z.array(z.string()),
-  fields: z.record(z.string(), z.object({ value: z.string(), order: z.number() })),
-  mod: z.number().int(),
-  cards: z.array(z.number().int()),
-});
-
-const cardInfoSchema = z.looseObject({
-  cardId: z.number().int(),
-  note: z.number().int(),
-  deckName: z.string(),
-  modelName: z.string(),
-  ord: z.number().int(),
-  type: z.number().int(),
-  queue: z.number().int(),
-  due: z.number().int(),
-  interval: z.number().int(),
-  factor: z.number().int(),
-  reps: z.number().int(),
-  lapses: z.number().int(),
-  mod: z.number().int(),
-});
-
 const modTimeSchema = (key: "noteId" | "cardId") =>
   z.union([z.object({ [key]: z.number().int(), mod: z.number().int() }), z.strictObject({})]);
-
-/** `[id, cid, usn, ease, ivl, lastIvl, factor, time, type]`: one row of Anki's review log. */
-const reviewRowSchema = z.tuple([
-  z.number().int(),
-  z.number().int(),
-  z.number().int(),
-  z.number().int(),
-  z.number().int(),
-  z.number().int(),
-  z.number().int(),
-  z.number().int(),
-  z.number().int(),
-]);
 
 /** Missing ids come back as `{}`. */
 const orMissing = <T extends z.ZodType>(schema: T) => z.union([schema, z.strictObject({})]);
 
-export type NoteInfo = z.infer<typeof noteInfoSchema>;
-export type CardInfo = z.infer<typeof cardInfoSchema>;
-export type ReviewRow = z.infer<typeof reviewRowSchema>;
+export type { CardInfo, NoteInfo, ReviewRow };
 export type Missing = Record<string, never>;
 
 export interface AnkiClient {

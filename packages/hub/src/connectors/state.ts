@@ -1,9 +1,11 @@
-/** Reads and writes `connector_state`. */
+/** Reads and writes `connector_state`: one row per source and computer (device). */
+import { DEFAULT_DEVICE } from "@mosaik/shared";
 import type { Database } from "../db/database.ts";
 import type { JsonValue } from "./types.ts";
 
 export interface ConnectorState {
   source: string;
+  device: string;
   cursor: JsonValue | null;
   lastRunAt: number | null;
   lastOkAt: number | null;
@@ -13,6 +15,7 @@ export interface ConnectorState {
 
 interface Row {
   source: string;
+  device: string;
   cursor: string | null;
   last_run_at: number | null;
   last_ok_at: number | null;
@@ -34,6 +37,7 @@ function parseJson<T>(text: string | null): T | null {
 function fromRow(row: Row): ConnectorState {
   return {
     source: row.source,
+    device: row.device,
     cursor: parseJson<JsonValue>(row.cursor),
     lastRunAt: row.last_run_at,
     lastOkAt: row.last_ok_at,
@@ -42,21 +46,32 @@ function fromRow(row: Row): ConnectorState {
   };
 }
 
-export function getConnectorState(db: Database, source: string): ConnectorState | null {
-  const row = db.prepare("SELECT * FROM connector_state WHERE source = ?").get(source) as Row | undefined;
+export function getConnectorState(
+  db: Database,
+  source: string,
+  device: string = DEFAULT_DEVICE,
+): ConnectorState | null {
+  const row = db
+    .prepare("SELECT * FROM connector_state WHERE source = ? AND device = ?")
+    .get(source, device) as Row | undefined;
   return row ? fromRow(row) : null;
 }
 
 export function listConnectorStates(db: Database): ConnectorState[] {
-  const rows = db.prepare("SELECT * FROM connector_state ORDER BY source").all() as unknown as Row[];
+  const rows = db.prepare("SELECT * FROM connector_state ORDER BY source, device").all() as unknown as Row[];
   return rows.map(fromRow);
 }
 
-export function markRunStarted(db: Database, source: string, at: number): void {
+export function markRunStarted(
+  db: Database,
+  source: string,
+  at: number,
+  device: string = DEFAULT_DEVICE,
+): void {
   db.prepare(
-    `INSERT INTO connector_state (source, last_run_at) VALUES (?, ?)
-     ON CONFLICT (source) DO UPDATE SET last_run_at = excluded.last_run_at`,
-  ).run(source, at);
+    `INSERT INTO connector_state (source, device, last_run_at) VALUES (?, ?, ?)
+     ON CONFLICT (source, device) DO UPDATE SET last_run_at = excluded.last_run_at`,
+  ).run(source, device, at);
 }
 
 export function markRunSucceeded(
@@ -64,18 +79,20 @@ export function markRunSucceeded(
   source: string,
   at: number,
   result: { cursor?: JsonValue | null | undefined; summary?: Record<string, JsonValue> | undefined },
+  device: string = DEFAULT_DEVICE,
 ): void {
   const keepCursor = result.cursor === undefined;
   db.prepare(
-    `INSERT INTO connector_state (source, cursor, last_ok_at, last_error, last_summary)
-     VALUES (:source, :cursor, :at, NULL, :summary)
-     ON CONFLICT (source) DO UPDATE SET
+    `INSERT INTO connector_state (source, device, cursor, last_ok_at, last_error, last_summary)
+     VALUES (:source, :device, :cursor, :at, NULL, :summary)
+     ON CONFLICT (source, device) DO UPDATE SET
        cursor = CASE WHEN :keepCursor THEN connector_state.cursor ELSE excluded.cursor END,
        last_ok_at = excluded.last_ok_at,
        last_error = NULL,
        last_summary = excluded.last_summary`,
   ).run({
     source,
+    device,
     cursor: keepCursor ? null : JSON.stringify(result.cursor),
     at,
     summary: result.summary === undefined ? null : JSON.stringify(result.summary),
@@ -83,9 +100,14 @@ export function markRunSucceeded(
   });
 }
 
-export function markRunFailed(db: Database, source: string, error: string): void {
+export function markRunFailed(
+  db: Database,
+  source: string,
+  error: string,
+  device: string = DEFAULT_DEVICE,
+): void {
   db.prepare(
-    `INSERT INTO connector_state (source, last_error) VALUES (?, ?)
-     ON CONFLICT (source) DO UPDATE SET last_error = excluded.last_error`,
-  ).run(source, error);
+    `INSERT INTO connector_state (source, device, last_error) VALUES (?, ?, ?)
+     ON CONFLICT (source, device) DO UPDATE SET last_error = excluded.last_error`,
+  ).run(source, device, error);
 }

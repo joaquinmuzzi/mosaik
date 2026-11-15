@@ -67,6 +67,17 @@ Cada fase termina con tests en verde y sus criterios cumplidos, como las anterio
 - El lote es JSON con esquema zod en `shared` (como la ingesta de Deuchan).
 - *Criterio:* los tests actuales pasan sin cambios; un lote serializado y aplicado da la misma base que la
   corrida directa; `verify:anki` y `verify:gsm` siguen dando lo mismo.
+- *Resultado (2026-11-15):* `readGsm`/`applyGsm` y `readAnki`/`applyAnki`, con `knownGsm`/`knownAnki` (lo que la
+  base ya tiene, así la lectura trae solo lo nuevo; las portadas viajan solo si cambiaron). Esquemas de los lotes
+  en `packages/shared/src/batches.ts`; los de AnkiConnect se mudaron ahí. Migración 0007: `device` en las líneas,
+  juegos, pausas y sesiones de GSM, y estado por fuente y dispositivo; las sesiones se cortan por computadora.
+  Tests nuevos (`test/batches.test.ts`): lote por JSON = corrida directa (GSM y Anki), aplicar dos veces no cambia
+  nada, y dos computadoras no se pisan. Sobre una copia de la base real: migrar y reconstruir GSM deja idénticos
+  los días, la biblioteca, las sesiones (5, 6419 s), las portadas y el origen de las tarjetas; `verify:gsm` sigue
+  en 0,0000 %. `verify:anki` no se pudo correr (Anki cerrado); el test con el Anki falso da el mismo resumen y
+  cursor que antes.
+- *Queda para la fase 9:* la configuración de GSM (hueco de sesión, puntuación) se aplica a todas las
+  computadoras con la de la última que mandó; cada una debería usar la suya (guardada en su cursor).
 
 **Fase 8 — Modo servidor con login**
 - `MOSAIK_MODE=server`: escucha en `0.0.0.0:$PORT`, acepta solo el host de `PUBLIC_URL` (reemplaza el chequeo de

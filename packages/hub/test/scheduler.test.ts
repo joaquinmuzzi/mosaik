@@ -47,6 +47,7 @@ describe("createScheduler", () => {
     expect(connector.contexts.map((context) => context.cursor)).toEqual([null, { runs: 1 }]);
     expect(getConnectorState(db, "anki")).toEqual({
       source: "anki",
+      device: "principal",
       cursor: { runs: 2 },
       lastRunAt: 2_000,
       lastOkAt: 2_000,
