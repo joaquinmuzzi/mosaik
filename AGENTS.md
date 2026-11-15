@@ -37,6 +37,8 @@ Los detalles (columnas, algoritmos, endpoints) están en `docs/plan.md`, secció
    `.db` suelto: usa WAL). A Anki solo se le hacen acciones de lectura de AnkiConnect. Nada de `insertReviews`,
    `updateNoteFields`, etc.
 2. **Todo local.** El servidor escucha solo en `127.0.0.1`. Ningún dato sale de la máquina. Sin telemetría.
+   Única excepción, apagada por defecto y elegida por el usuario: `YOUTUBE_THUMBNAILS=1` pide las miniaturas
+   de los videos a YouTube (una vez por video).
 3. **Crudo primero.** Cada conector guarda los datos de su fuente tal como llegan (con sus IDs originales) en
    tablas `raw_*`. El modelo común y las métricas se derivan de ahí y se pueden recalcular.
 4. **Idempotencia.** Correr un conector dos veces no duplica nada: upserts por ID de origen y un cursor por

@@ -76,6 +76,11 @@ npm start
 
 y abrir <http://127.0.0.1:7300>.
 
+## Diseños
+
+Hay varias propuestas de interfaz para comparar: menú **Diseño** abajo a la derecha, o `?design=<nombre>`.
+Ver [`docs/designs/README.md`](docs/designs/README.md) (las capturas se generan con `npm run screenshots`).
+
 ## Comandos
 
 | Comando | Qué hace |
@@ -107,6 +112,7 @@ Todas son opcionales:
 | `DAY_CUTOFF_HOUR` | `4` | Hora local en la que empieza un día (como Anki) |
 | `TZ_NAME` | `America/Buenos_Aires` | Zona horaria para calcular los días |
 | `SYNC_INTERVAL_MINUTES` | `5` | Cada cuánto corren los conectores |
+| `YOUTUBE_THUMBNAILS` | apagado | `1` para pedirle a YouTube las miniaturas de los videos (una vez cada una) |
 | `TARGET_LANGUAGE` | `de` | Idioma que se aprende: solo sus sesiones cuentan como inmersión |
 | `LOG_LEVEL` | `info` | `fatal` … `trace`, o `silent` |
 
