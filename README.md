@@ -38,6 +38,21 @@ Todo corre en esta computadora: el servidor escucha solo en `127.0.0.1` y ningú
   (promedio y mediana por día) y una tabla por semana, mes o año con el cambio respecto del período anterior.
   En Fuentes se bajan los días, la biblioteca y las tarjetas como CSV, y una copia completa de la base.
 
+## Servidor en internet (opcional)
+
+Para usar Mosaik desde varias computadoras: el hub corre en un servidor (`MOSAIK_MODE=server`, por ejemplo en
+Railway con el `Dockerfile` de este repo y un volumen en `/data`) y cada computadora corre un agente
+(`MOSAIK_MODE=agent`) que le manda su Anki y su GSM. El plan y los detalles están en
+[`docs/plan-servidor.md`](docs/plan-servidor.md). En resumen:
+
+1. Servidor: variables `PUBLIC_URL` (su dirección https) y `SETUP_TOKEN` (un secreto largo); abrir la dirección y
+   crear la cuenta con ese token. Una base que ya tengas se puede subir antes de crear la cuenta:
+   `POST /api/admin/import` con `Authorization: Bearer <SETUP_TOKEN>` y el archivo de Fuentes → Exportar → Copia
+   completa; toma su lugar al reiniciar el servidor.
+2. En el servidor, Fuentes → Dispositivos: un token por computadora.
+3. En cada computadora, en `.env`: `MOSAIK_MODE=agent`, `SERVER_URL` y `DEVICE_TOKEN`; después
+   `npm run autostart:install`.
+
 ## Arranque con Windows
 
 ```bash

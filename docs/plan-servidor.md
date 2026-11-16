@@ -139,6 +139,20 @@ Cada fase termina con tests en verde y sus criterios cumplidos, como las anterio
 - *Criterio:* el dashboard en Railway muestra lo mismo que el local antes del cambio (mismos totales por día),
   y lo nuevo de la PC principal entra en menos de 10 minutos.
 
+- *Resultado (2026-11-15):* proyecto `mosaik` en Railway, un servicio que se construye con el `Dockerfile`
+  (Node 24), volumen en `/data` (`HUB_DB_PATH=/data/mosaik.db`), dominio de Railway con HTTPS, chequeo de salud
+  en `/api/health` y reinicio si falla (configurados en el servicio: `railway.json` está deprecado desde
+  diciembre de 2026). La base local se subió con `POST /api/admin/import` y tomó su lugar al reiniciar. Con la
+  cuenta creada, los totales por día, los contenidos y Anki dieron igual que en el hub local (misma huella sobre
+  62 días). La PC principal pasó a modo agente (dispositivo `principal`, sigue desde sus cursores; el `.env`
+  anterior quedó en `.env.local-backup`).
+- *Encontrado:* el hub local viejo (código de antes de la fase 7) seguía corriendo mientras otro proceso más nuevo
+  ya había aplicado las migraciones 7 y 8 a su base, y desde ahí su GSM fallaba. No se perdió nada: el agente
+  trajo las 140 líneas de esas horas desde `gsm.db`. Lección: después de cambiar migraciones, reiniciar el hub
+  que corre (`npm run autostart:install` y reiniciar la tarea).
+- *Volver a desplegar:* `railway up --service mosaik` desde la carpeta del proyecto (sube lo que no ignora
+  `.gitignore`; el `.env` y las bases no viajan).
+
 **Fase 11 — Deuchan al servidor** (en el repo de Deuchan)
 - Aceptar una URL `https://` con token (además de `127.0.0.1`), pedir permiso de host para ese dominio, mandar el
   token en una cabecera.
