@@ -171,6 +171,13 @@ Cada fase termina con tests en verde y sus criterios cumplidos, como las anterio
 - Instalar el agente en la otra compu (por SSH), con su token, y probar una sesión de lectura real.
 - *Criterio:* lo leído en la otra PC aparece en el dashboard, en el mismo contenido si es el mismo juego.
 
+- *Resultado (2026-11-15):* el agente corre en la otra PC (`JOAQUIN`), instalado por SSH: clon del repo,
+  `npm ci` y build, `.env` en modo agente con su propio dispositivo y la tarea de inicio. En el servidor aparece
+  con Anki y GSM al día y sin errores. Esa PC tiene Node 22: `node:sqlite` funciona (avisa que es experimental),
+  así que no se tocó, aunque el proyecto pide Node 24. Su GSM todavía está vacío, así que la prueba con lectura
+  real queda para la primera vez que se lea ahí. Apareció un error de `autostart.ps1`: por SSH `USERDOMAIN` es
+  `WORKGROUP` y la tarea no se podía registrar; ahora usa la identidad de Windows (`EQUIPO\usuario`).
+
 **Fase 13 (opcional) — Agente como exe**
 - Empaquetar el agente con Node SEA en un `.exe` (sin instalar Node), con opción "iniciar con Windows".
   Después, si hace falta, un ícono en la bandeja (estado, sincronizar, abrir el dashboard).
