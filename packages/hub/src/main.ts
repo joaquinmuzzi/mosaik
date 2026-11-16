@@ -13,6 +13,7 @@ import { ConfigError, loadConfig } from "./config.ts";
 import { createConnectors } from "./connectors/index.ts";
 import type { Logger } from "./connectors/types.ts";
 import { openDatabase } from "./db/database.ts";
+import { promoteImport } from "./db/import.ts";
 import { applyMigrations, schemaVersion } from "./db/migrate.ts";
 import { createScheduler } from "./scheduler.ts";
 import { buildServer } from "./server.ts";
@@ -38,6 +39,12 @@ async function main(): Promise<void> {
       ? { level: config.logLevel, file: logFile }
       : { level: config.logLevel };
 
+  // A database sent to the server to replace this one (POST /api/admin/import) takes its place now
+  const imported = promoteImport(config.dbPath);
+  if (imported)
+    console.log(
+      `Imported database in place of ${config.dbPath}; the old one is ${imported.keptAs ?? "none"}`,
+    );
   const db = openDatabase(config.dbPath);
   const applied = applyMigrations(db);
 

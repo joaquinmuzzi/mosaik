@@ -1,0 +1,12 @@
+# Nothing personal or local goes into the image: no .env, no databases, no screenshots, no builds
+.git
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+**/dist
+*.db
+*.db-*
+*.sqlite
+docs/screenshots

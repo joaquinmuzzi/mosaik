@@ -13,7 +13,7 @@
  *   or from a program (no Origin header). The API sends no CORS headers, so other pages cannot read
  *   its answers either.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
@@ -65,6 +65,7 @@ import Fastify, {
 import type { Config } from "./config.ts";
 import { listConnectorStates } from "./connectors/state.ts";
 import type { Database } from "./db/database.ts";
+import { IMPORT_SUFFIX, looksLikeSqlite } from "./db/import.ts";
 import { schemaVersion } from "./db/migrate.ts";
 import { INGEST_BODY_LIMIT, ingestEvents } from "./ingest.ts";
 import type { Scheduler } from "./scheduler.ts";
@@ -93,6 +94,9 @@ const CONTENT_SECURITY_POLICY = [
 ].join("; ");
 
 const pathOf = (url: string) => url.split("?")[0] ?? url;
+
+/** Up to 512 MB for the one-time import of an existing database. */
+const IMPORT_BODY_LIMIT = 512 * 1024 * 1024;
 
 function readVersion(): string {
   try {
@@ -185,6 +189,15 @@ export async function buildServer({
     }
     // The dashboard's files are public; the page asks for a login itself
     if (!path.startsWith("/api/")) return;
+    // Moving the old database here, once: only with the setup token, and only before the account exists
+    if (path === "/api/admin/import") {
+      const token = bearerToken(request.headers.authorization);
+      if (!config.setupToken || !token || !sameSecret(token, config.setupToken)) {
+        return reply.code(401).send({ error: "invalid_setup_token" });
+      }
+      if (getAccount(db)) return reply.code(409).send({ error: "already_set_up" });
+      return;
+    }
     if (path.startsWith("/api/agent/") || path === "/api/ingest/events") {
       const token = bearerToken(request.headers.authorization);
       const device = token ? deviceForToken(db, token, Date.now()) : null;
@@ -345,6 +358,21 @@ export async function buildServer({
       const result = applyAgentBatch(db, config, device, parsed.data, Date.now());
       const response: AgentBatchResponse = { ok: true, device, summary: result.summary ?? null };
       return response;
+    });
+
+    // The old database, as a file: it waits next to the database and takes its place at the next start
+    app.addContentTypeParser(
+      "application/octet-stream",
+      { parseAs: "buffer", bodyLimit: IMPORT_BODY_LIMIT },
+      (_request, body, done) => done(null, body),
+    );
+    app.post("/api/admin/import", { bodyLimit: IMPORT_BODY_LIMIT }, async (request, reply) => {
+      const body = request.body;
+      if (!Buffer.isBuffer(body) || !looksLikeSqlite(body)) {
+        return reply.code(400).send({ error: "not_a_database", message: "Send a Mosaik database (SQLite)" });
+      }
+      writeFileSync(`${config.dbPath}${IMPORT_SUFFIX}`, body);
+      return reply.code(202).send({ ok: true, bytes: body.length, next: "restart the server to use it" });
     });
 
     // A source the agent could not read (Anki closed, GSM missing): shown in Fuentes for that computer
