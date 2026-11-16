@@ -338,6 +338,9 @@ export async function buildServer({
       revoked: revokeDevice(db, request.params.name, Date.now()),
     }));
 
+    // Which device a token is (Deuchan's "Test connection" uses it)
+    app.get("/api/agent/whoami", async (request) => ({ device: deviceOf.get(request)! }));
+
     // Agents
     app.get<{ Querystring: { source?: string } }>("/api/agent/state", async (request, reply) => {
       const source = request.query.source;

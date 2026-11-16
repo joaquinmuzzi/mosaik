@@ -300,6 +300,15 @@ describe("devices and agents", () => {
     ]);
   });
 
+  it("says which device a token is", async () => {
+    const { server, agent } = await withDevice("deuchan");
+    const answer = await server.inject({ url: "/api/agent/whoami", headers: agent });
+    expect(answer.json()).toEqual({ device: "deuchan" });
+    expect(
+      (await server.inject({ url: "/api/agent/whoami", headers: { host: "mosaik.test" } })).statusCode,
+    ).toBe(401);
+  });
+
   it("refuses a malformed batch and a revoked token", async () => {
     const { server, cookie, agent } = await withDevice();
     const malformed = await server.inject({

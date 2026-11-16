@@ -17,8 +17,14 @@ GET http://127.0.0.1:7300/api/health
 ```
 
 `name: "mosaik"` distingue al hub de otro programa en el mismo puerto. El puerto es configurable
-(`HUB_PORT`); el cliente debe dejar cambiar la URL, pero aceptar solo `http://127.0.0.1:<puerto>` o
-`http://localhost:<puerto>`: los datos nunca salen de la computadora.
+(`HUB_PORT`); el cliente debe dejar cambiar la URL y aceptar `http://127.0.0.1:<puerto>`,
+`http://localhost:<puerto>` o, para un Mosaik en un servidor (`MOSAIK_MODE=server`), una dirección `https://`.
+Nunca `http://` a otra computadora: los datos y el token viajarían sin cifrar.
+
+**Servidor:** cada pedido lleva `Authorization: Bearer <token>`, el token de dispositivo que se crea en Fuentes →
+Dispositivos (`mkd_…`). Sin token o con uno revocado, la respuesta es `401 { "error": "invalid_device_token" }`.
+`GET /api/agent/whoami` (con el token) contesta `{ "device": "<nombre>" }`, para probar la conexión. `/api/health`
+no pide token. Desde Deuchan: [joaquinmuzzi/Deuchan#29](https://github.com/joaquinmuzzi/Deuchan/pull/29).
 
 ## Mandar eventos
 
