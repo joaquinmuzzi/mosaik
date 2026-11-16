@@ -159,6 +159,14 @@ Cada fase termina con tests en verde y sus criterios cumplidos, como las anterio
 - El servidor acepta la ingesta con token de dispositivo.
 - *Criterio:* el validador de contrato de Deuchan pasa; un día de prueba llega igual que hoy.
 
+- *Resultado (2026-11-15):* [joaquinmuzzi/Deuchan#29](https://github.com/joaquinmuzzi/Deuchan/pull/29): "Send to
+  Mosaik" acepta una dirección `https://` con el token de dispositivo (`Authorization: Bearer`), pide permiso solo
+  para ese host, y "Test connection" dice qué dispositivo es (`GET /api/agent/whoami`, nuevo en Mosaik). Probado
+  en un Chrome real contra el servidor (sin token, token equivocado, token correcto, prender). Al conectarlo de
+  verdad apareció un error del panel ("Test connection" volvía a poner la dirección guardada), corregido en el
+  mismo PR. La extensión de esta PC usa esa versión, con el dispositivo `deuchan`; los días de YouTube llegaron
+  al servidor.
+
 **Fase 12 — La otra PC**
 - Instalar el agente en la otra compu (por SSH), con su token, y probar una sesión de lectura real.
 - *Criterio:* lo leído en la otra PC aparece en el dashboard, en el mismo contenido si es el mismo juego.
