@@ -173,10 +173,16 @@ Cada fase termina con tests en verde y sus criterios cumplidos, como las anterio
 
 - *Resultado (2026-11-15):* el agente corre en la otra PC (`JOAQUIN`), instalado por SSH: clon del repo,
   `npm ci` y build, `.env` en modo agente con su propio dispositivo y la tarea de inicio. En el servidor aparece
-  con Anki y GSM al día y sin errores. Esa PC tiene Node 22: `node:sqlite` funciona (avisa que es experimental),
-  así que no se tocó, aunque el proyecto pide Node 24. Su GSM todavía está vacío, así que la prueba con lectura
+  con Anki y GSM al día y sin errores. Esa PC tenía Node 22 (`node:sqlite` andaba, con aviso de experimental);
+  después se pasó al LTS de winget, Node 26 (winget ya no tiene un paquete de Node 24). Su GSM todavía está vacío, así que la prueba con lectura
   real queda para la primera vez que se lea ahí. Apareció un error de `autostart.ps1`: por SSH `USERDOMAIN` es
   `WORKGROUP` y la tarea no se podía registrar; ahora usa la identidad de Windows (`EQUIPO\usuario`).
+
+- *Después (2026-11-15):* el servidor tiene un dominio más fácil (un `*.up.railway.app` propio en vez del
+  generado); se cambió `PUBLIC_URL` y `SERVER_URL` de los dos agentes. Deuchan de la otra PC quedó actualizado
+  pero sin mandar: el total de un día ya incluye todas las computadoras, pero la lista de videos es solo la de la
+  computadora que manda, así que dos Deuchan mandando se pisarían la lista (lo resuelve
+  [joaquinmuzzi/Deuchan#27](https://github.com/joaquinmuzzi/Deuchan/pull/27), abierto).
 
 **Fase 13 (opcional) — Agente como exe**
 - Empaquetar el agente con Node SEA en un `.exe` (sin instalar Node), con opción "iniciar con Windows".
