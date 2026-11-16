@@ -21,7 +21,8 @@ $TaskName = "Mosaik"
 $Root = Split-Path -Parent $PSScriptRoot
 $Entry = Join-Path $Root "packages\hub\dist\main.js"
 $LogFile = Join-Path $env:LOCALAPPDATA "Mosaik\hub.log"
-$User = "$env:USERDOMAIN\$env:USERNAME"
+# The account as Windows names it (COMPUTER\user): USERDOMAIN says WORKGROUP in an SSH session
+$User = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 
 # A setting from .env, or $default
 function Get-EnvValue([string]$name, [string]$default) {
