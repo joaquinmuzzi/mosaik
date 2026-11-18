@@ -97,36 +97,36 @@
     </div>
   </header>
 
-  <section class="tiles" aria-label="Totales">
-    <div class="tile">
-      <span class="value">{duration(content.seconds)}</span><span class="label">tiempo</span>
+  <section class="totals" aria-label="Totales">
+    <div class="total">
+      <span class="label">Tiempo</span><span class="value">{duration(content.seconds)}</span>
     </div>
     {#if content.sessions > 0}
-      <div class="tile">
-        <span class="value">{number.format(content.sessions)}</span><span class="label">sesiones</span>
+      <div class="total">
+        <span class="label">Sesiones</span><span class="value">{number.format(content.sessions)}</span>
       </div>
     {/if}
     {#if content.characters !== null}
-      <div class="tile">
-        <span class="value">{number.format(content.characters)}</span><span class="label"
-          >caracteres leídos</span
+      <div class="total">
+        <span class="label">Caracteres leídos</span><span class="value"
+          >{number.format(content.characters)}</span
         >
       </div>
     {/if}
     {#if data.charactersPerHour !== null}
-      <div class="tile">
-        <span class="value">{number.format(data.charactersPerHour)}</span><span class="label"
-          >caracteres por hora</span
+      <div class="total">
+        <span class="label">Caracteres por hora</span><span class="value"
+          >{number.format(data.charactersPerHour)}</span
         >
       </div>
     {/if}
     {#if data.completion !== null}
-      <div class="tile">
-        <span class="value">{percent.format(data.completion)}</span><span class="label">leído</span>
+      <div class="total">
+        <span class="label">Leído</span><span class="value">{percent.format(data.completion)}</span>
       </div>
     {/if}
-    <div class="tile">
-      <span class="value">{number.format(content.cardsMined)}</span><span class="label">tarjetas minadas</span
+    <div class="total">
+      <span class="label">Tarjetas minadas</span><span class="value">{number.format(content.cardsMined)}</span
       >
     </div>
   </section>
@@ -243,31 +243,34 @@
     margin: 0;
   }
 
-  .tiles {
+  /* Not "tile": that is the small square that marks a source, everywhere (app.css) */
+  .totals {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-    margin: 16px 0 8px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin: 24px 0 12px;
   }
 
-  .tile {
+  .total {
     display: flex;
     flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 16px 20px;
+    border-radius: var(--radius-card);
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px 14px;
-  }
-
-  .value {
-    font-size: 1.25rem;
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
   }
 
   .label {
-    color: var(--muted);
-    font-size: 0.8125rem;
+    color: var(--secondary);
+  }
+
+  .value {
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
   }
 
   tr.other {
