@@ -40,12 +40,12 @@ export async function loadFeed(days: DaySummary[], { maxDays = 6, maxItems = 10 
     }
     for (const video of detail.deuchan.videos) {
       items.push({
-        key: `yt:${video.videoId}:${detail.day}`,
+        key: `${video.id}:${detail.day}`,
         day: detail.day,
         ts: detail.deuchan.snapshotAt ?? end,
         kind: "youtube",
-        title: video.title || video.videoId,
-        detail: `Miraste ${duration(video.seconds)}`,
+        title: video.title || video.url || video.id,
+        detail: `${video.contentKind === "reading" ? "Leíste" : "Miraste"} ${duration(video.seconds)}`,
       });
     }
     if (detail.anki.mined.length > 0) {

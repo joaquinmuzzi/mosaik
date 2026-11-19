@@ -9,6 +9,7 @@ import type {
   AnkiStatsResponse,
   DayDetailResponse,
   DaySummary,
+  DayVideo,
   OriginRetention,
   OriginStats,
   OverviewResponse,
@@ -16,6 +17,7 @@ import type {
 } from "@mosaik/shared";
 import { dayKey } from "@mosaik/shared";
 import type { Database } from "../db/database.ts";
+import { snapshotItemsByDay } from "../derive/deuchan.ts";
 import { COUNTED_REVIEW_TYPES } from "../metrics/reviews.ts";
 
 export interface DashboardOptions {
@@ -77,7 +79,8 @@ export function dailyTotals(
     day: string;
     seconds: number;
   }[]) {
-    deuchan.set(row.day, row.seconds);
+    // Each device sends only its own time: the day is their sum
+    add(deuchan, row.day, row.seconds);
   }
   const reviews = new Map<string, { count: number; seconds: number }>();
   for (const row of db.prepare(`SELECT ts, time_ms FROM reviews WHERE type IN ${COUNTED}`).all() as {
@@ -181,23 +184,22 @@ export function dayDetail(db: Database, options: DashboardOptions, day: string):
   }
   const gsmSessions = [...sessions.values()];
 
-  // Deuchan: its own total for the day, and the videos of its newest snapshot
-  const total = db
-    .prepare("SELECT seconds, at FROM day_totals WHERE source = 'deuchan' AND day = ?")
-    .get(day) as { seconds: number; at: number } | undefined;
-  let videos: DayDetailResponse["deuchan"]["videos"] = [];
-  if (total) {
-    const snapshot = db
-      .prepare(
-        `SELECT payload FROM raw_events WHERE source = 'deuchan' AND kind = 'day_total'
-         AND json_extract(payload, '$.day') = ? AND json_extract(payload, '$.at') = ?`,
-      )
-      .get(day, total.at) as { payload: string } | undefined;
-    const event = snapshot
-      ? (JSON.parse(snapshot.payload) as { videos?: DayDetailResponse["deuchan"]["videos"] })
-      : {};
-    videos = [...(event.videos ?? [])].sort((a, b) => b.seconds - a.seconds);
-  }
+  // Deuchan: the total of each device for the day, and the items of their newest snapshots
+  const deuchanDevices = db
+    .prepare(
+      `SELECT device, seconds, reading_seconds, at FROM day_totals
+       WHERE source = 'deuchan' AND day = ? ORDER BY seconds DESC, device`,
+    )
+    .all(day) as { device: string; seconds: number; reading_seconds: number; at: number }[];
+  const videos: DayVideo[] = (snapshotItemsByDay(db, { from: day, to: day }).get(day) ?? []).map((item) => ({
+    id: item.contentId,
+    videoId: item.videoId,
+    title: item.title,
+    url: item.url,
+    contentKind: item.contentKind,
+    seconds: item.seconds,
+    devices: item.devices,
+  }));
 
   // Anki
   const byType = { learning: 0, review: 0, relearning: 0, filtered: 0 };
@@ -254,7 +256,13 @@ export function dayDetail(db: Database, options: DashboardOptions, day: string):
       sessions: gsmSessions,
       otherLanguageSeconds,
     },
-    deuchan: { seconds: total?.seconds ?? null, snapshotAt: total?.at ?? null, videos },
+    deuchan: {
+      seconds: deuchanDevices.length > 0 ? deuchanDevices.reduce((sum, row) => sum + row.seconds, 0) : null,
+      readingSeconds: deuchanDevices.reduce((sum, row) => sum + row.reading_seconds, 0),
+      devices: deuchanDevices.map((row) => ({ device: row.device, seconds: row.seconds, at: row.at })),
+      snapshotAt: deuchanDevices.length > 0 ? Math.max(...deuchanDevices.map((row) => row.at)) : null,
+      videos,
+    },
     anki: {
       reviews,
       byType,

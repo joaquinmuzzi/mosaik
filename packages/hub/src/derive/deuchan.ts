@@ -2,19 +2,25 @@
  * Builds the Deuchan rows of `contents`, `sessions` and `day_totals` from the events in `raw_events`.
  * Everything here can be thrown away and rebuilt.
  *
- * - Intervals of the same video less than 10 minutes apart make one session.
- * - A video the person removed from a day loses its intervals of that day (Deuchan's day: the local
- *   calendar day in which the interval ended).
- * - The total of a day is the newest `day_total` snapshot: it is what Deuchan's dashboard shows,
- *   corrections and other computers included. It is never derived from the intervals or from the
- *   `videos` of the snapshot, which only hold this computer's videos.
+ * Deuchan sends from several devices (computers, Chrome profiles), each with its own token, and each
+ * sends only what was watched or read there.
+ *
+ * - An item is a YouTube video (`yt:<videoId>`) or anything else the source names (`web:<hash>`: a
+ *   video on another site, a page read by hand).
+ * - Intervals of the same item on the same device less than 10 minutes apart make one session.
+ * - An item the person removed from a day loses its intervals of that day, on every device (Deuchan's
+ *   day: the local calendar day in which the interval ended).
+ * - Per device and day, the newest `day_total` snapshot is what that device's dashboard shows,
+ *   corrections included. The day is the sum of its devices. It is never derived from the intervals.
  */
 import {
+  type ContentKind,
   type DayTotalEvent,
   type IngestEvent,
   type VideoRemovedEvent,
   type WatchIntervalEvent,
   dayKey,
+  deuchanContentId,
 } from "@mosaik/shared";
 import type { Database } from "../db/database.ts";
 
@@ -24,6 +30,8 @@ export const DEUCHAN_SOURCE = "deuchan";
 export const SESSION_GAP_MS = 10 * 60_000;
 
 export const videoContentId = (videoId: string) => `yt:${videoId}`;
+
+export const youtubeUrl = (videoId: string) => `https://www.youtube.com/watch?v=${videoId}`;
 
 export interface DeuchanDeriveOptions {
   timeZone: string;
@@ -36,26 +44,38 @@ export interface DeuchanDeriveResult {
   days: number;
 }
 
-function loadEvents(db: Database): IngestEvent[] {
+/** An event as stored, with the device that sent it. */
+export type StoredEvent = IngestEvent & { device: string };
+
+export function loadDeuchanEvents(db: Database): StoredEvent[] {
   return (
     db
-      .prepare("SELECT payload FROM raw_events WHERE source = ? ORDER BY received_at, id")
-      .all(DEUCHAN_SOURCE) as {
-      payload: string;
-    }[]
-  ).map((row) => JSON.parse(row.payload) as IngestEvent);
+      .prepare("SELECT payload, device FROM raw_events WHERE source = ? ORDER BY received_at, id")
+      .all(DEUCHAN_SOURCE) as { payload: string; device: string }[]
+  ).map((row) => ({ ...(JSON.parse(row.payload) as IngestEvent), device: row.device }));
 }
 
-/** The intervals that still count: those of videos not removed from their day. */
-export function countedIntervals(events: IngestEvent[], timeZone: string): WatchIntervalEvent[] {
+/** The intervals that still count: those of items not removed from their day. */
+export function countedIntervals<T extends IngestEvent>(
+  events: T[],
+  timeZone: string,
+): (T & WatchIntervalEvent)[] {
   const removed = new Set(
     events
-      .filter((event): event is VideoRemovedEvent => event.kind === "video_removed")
-      .map((event) => `${event.day}|${event.videoId}`),
+      .filter((event): event is T & VideoRemovedEvent => event.kind === "video_removed")
+      .map((event) => `${event.day}|${deuchanContentId(event)}`),
   );
   return events
-    .filter((event): event is WatchIntervalEvent => event.kind === "watch_interval")
-    .filter((event) => !removed.has(`${dayKey(event.to, timeZone, 0)}|${event.videoId}`));
+    .filter((event): event is T & WatchIntervalEvent => event.kind === "watch_interval")
+    .filter((event) => !removed.has(`${dayKey(event.to, timeZone, 0)}|${deuchanContentId(event)}`));
+}
+
+interface ItemInfo {
+  title: string | null;
+  titleAt: number;
+  url: string | null;
+  videoId: string | null;
+  kind: ContentKind;
 }
 
 /** Rebuilds Deuchan's rows of the common model. Call it inside a transaction. */
@@ -64,66 +84,90 @@ export function rebuildDeuchan(db: Database, { timeZone }: DeuchanDeriveOptions)
   db.prepare("DELETE FROM contents WHERE source = ?").run(DEUCHAN_SOURCE);
   db.prepare("DELETE FROM day_totals WHERE source = ?").run(DEUCHAN_SOURCE);
 
-  const events = loadEvents(db);
+  const events = loadDeuchanEvents(db);
   const intervals = countedIntervals(events, timeZone).sort(
     (a, b) => a.from - b.from || a.id.localeCompare(b.id),
   );
 
-  // Videos, with the newest title seen for each
-  const titles = new Map<string, { title: string | null; at: number }>();
-  // The newest non-empty title wins: videos get renamed
-  const seeTitle = (videoId: string, title: string | undefined, at: number) => {
-    const known = titles.get(videoId);
-    if (!title) {
-      if (!known) titles.set(videoId, { title: null, at });
-    } else if (!known || !known.title || at >= known.at) {
-      titles.set(videoId, { title, at });
+  // Items, with the newest non-empty title seen for each (videos get renamed)
+  const items = new Map<string, ItemInfo>();
+  const see = (
+    item: {
+      videoId?: string | undefined;
+      itemId?: string | undefined;
+      url?: string | undefined;
+      contentKind?: ContentKind | undefined;
+    },
+    title: string | undefined,
+    at: number,
+  ) => {
+    const id = deuchanContentId(item);
+    const known = items.get(id) ?? {
+      title: null,
+      titleAt: at,
+      url: null,
+      videoId: item.videoId ?? null,
+      kind: item.contentKind ?? "video",
+    };
+    if (title && (!known.title || at >= known.titleAt)) {
+      known.title = title;
+      known.titleAt = at;
     }
+    if (item.url) known.url = item.url;
+    if (item.contentKind) known.kind = item.contentKind;
+    items.set(id, known);
   };
   for (const event of events) {
-    if (event.kind === "watch_interval") seeTitle(event.videoId, event.title, event.to);
-    if (event.kind === "day_total")
-      for (const video of event.videos ?? []) seeTitle(video.videoId, video.title, event.at);
+    if (event.kind === "watch_interval") see(event, event.title, event.to);
+    if (event.kind === "day_total") for (const video of event.videos ?? []) see(video, video.title, event.at);
   }
   const insertContent = db.prepare(
     `INSERT INTO contents (id, source, kind, title, external_id, parent_id, total_units, unit, meta)
-     VALUES (?, ?, 'video', ?, ?, NULL, NULL, NULL, ?)`,
+     VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?)`,
   );
-  for (const [videoId, { title }] of titles) {
+  for (const [id, item] of items) {
+    const url = item.url ?? (item.videoId ? youtubeUrl(item.videoId) : null);
     insertContent.run(
-      videoContentId(videoId),
+      id,
       DEUCHAN_SOURCE,
-      title,
-      videoId,
-      JSON.stringify({ url: `https://www.youtube.com/watch?v=${videoId}` }),
+      item.kind === "reading" ? "book" : "video",
+      item.title,
+      item.videoId,
+      JSON.stringify(url ? { url } : {}),
     );
   }
 
-  // Sessions: the intervals of each video, cut where they are 10 minutes or more apart
+  // Sessions: the intervals of each item on each device, cut where they are 10 minutes or more apart
   const insertSession = db.prepare(
-    `INSERT INTO sessions (id, source, medium, language, content_id, start_ts, end_ts, seconds, units, unit, lines)
-     VALUES (?, ?, 'video', ?, ?, ?, ?, ?, NULL, NULL, NULL)`,
+    `INSERT INTO sessions (id, source, medium, language, content_id, start_ts, end_ts, seconds, units, unit, lines, device)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?)`,
   );
-  const byVideo = new Map<string, WatchIntervalEvent[]>();
+  const byItem = new Map<string, typeof intervals>();
   for (const interval of intervals) {
-    const list = byVideo.get(interval.videoId) ?? [];
+    const key = `${interval.device}\u0000${deuchanContentId(interval)}`;
+    const list = byItem.get(key) ?? [];
     list.push(interval);
-    byVideo.set(interval.videoId, list);
+    byItem.set(key, list);
   }
   let sessions = 0;
   let seconds = 0;
-  for (const [videoId, list] of byVideo) {
+  for (const list of byItem.values()) {
+    const first = list[0]!;
+    const contentId = deuchanContentId(first);
+    const medium = items.get(contentId)?.kind === "reading" ? "reading" : "video";
     let current: { id: string; language: string; start: number; end: number; seconds: number } | null = null;
     const flush = () => {
       if (!current) return;
       insertSession.run(
         `deuchan:${current.id}`,
         DEUCHAN_SOURCE,
+        medium,
         current.language,
-        videoContentId(videoId),
+        contentId,
         current.start,
         current.end,
         current.seconds,
+        first.device,
       );
       sessions += 1;
       seconds += current.seconds;
@@ -146,38 +190,129 @@ export function rebuildDeuchan(db: Database, { timeZone }: DeuchanDeriveOptions)
     flush();
   }
 
-  // Day totals: per day, the newest snapshot
-  const newest = new Map<string, DayTotalEvent>();
+  // Day totals: per device and day, the newest snapshot
+  const newest = newestSnapshots(events);
+  const insertDay = db.prepare(
+    `INSERT INTO day_totals (source, device, day, seconds, reading_seconds, at, event_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  );
+  const days = new Set<string>();
+  for (const event of newest) {
+    insertDay.run(
+      DEUCHAN_SOURCE,
+      event.device,
+      event.day,
+      event.seconds,
+      event.readingSeconds ?? 0,
+      event.at,
+      event.id,
+    );
+    days.add(event.day);
+  }
+
+  return { videos: items.size, sessions, seconds, days: days.size };
+}
+
+/** For each device and day, the snapshot with the newest `at`. */
+export function newestSnapshots(events: StoredEvent[]): (DayTotalEvent & { device: string })[] {
+  const newest = new Map<string, DayTotalEvent & { device: string }>();
   for (const event of events) {
     if (event.kind !== "day_total") continue;
-    const known = newest.get(event.day);
+    const key = `${event.device}\u0000${event.day}`;
+    const known = newest.get(key);
     if (!known || event.at > known.at || (event.at === known.at && event.id > known.id))
-      newest.set(event.day, event);
+      newest.set(key, event);
   }
-  const insertDay = db.prepare("INSERT INTO day_totals (source, day, seconds, at) VALUES (?, ?, ?, ?)");
-  for (const [day, event] of newest) insertDay.run(DEUCHAN_SOURCE, day, event.seconds, event.at);
+  return [...newest.values()];
+}
 
-  return { videos: titles.size, sessions, seconds, days: newest.size };
+/** An item of a day as the newest snapshots of its devices list it. */
+export interface DeuchanDayItem {
+  contentId: string;
+  videoId: string | null;
+  title: string | null;
+  url: string | null;
+  contentKind: ContentKind;
+  seconds: number;
+  /** The devices it was watched or read on, most seconds first. */
+  devices: string[];
+  /** Its seconds on each device. */
+  secondsByDevice: Record<string, number>;
 }
 
 /**
- * Titles of the videos Deuchan saw on each day (Deuchan's day), for matching a card's source title:
+ * The items of the newest snapshot of each device, per day: an item on two devices is listed once
+ * with the sum of its seconds. Most seconds first.
+ */
+export function snapshotItemsByDay(
+  db: Database,
+  days?: { from: string; to: string },
+): Map<string, DeuchanDayItem[]> {
+  const rows = db
+    .prepare(
+      `SELECT d.day, d.device, e.payload FROM day_totals d JOIN raw_events e ON e.id = d.event_id
+       WHERE d.source = 'deuchan' ${days ? "AND d.day BETWEEN ? AND ?" : ""}`,
+    )
+    .all(...(days ? [days.from, days.to] : [])) as { day: string; device: string; payload: string }[];
+  const byDay = new Map<string, Map<string, DeuchanDayItem & { perDevice: Map<string, number> }>>();
+  for (const row of rows) {
+    const event = JSON.parse(row.payload) as DayTotalEvent;
+    const list = byDay.get(row.day) ?? new Map();
+    for (const video of event.videos ?? []) {
+      const contentId = deuchanContentId(video);
+      const item = list.get(contentId) ?? {
+        contentId,
+        videoId: video.videoId ?? null,
+        title: null,
+        url: null,
+        contentKind: video.contentKind ?? "video",
+        seconds: 0,
+        devices: [],
+        secondsByDevice: {},
+        perDevice: new Map<string, number>(),
+      };
+      item.seconds += video.seconds;
+      item.title = item.title || video.title || null;
+      item.url = item.url ?? video.url ?? (video.videoId ? youtubeUrl(video.videoId) : null);
+      item.perDevice.set(row.device, (item.perDevice.get(row.device) ?? 0) + video.seconds);
+      list.set(contentId, item);
+    }
+    byDay.set(row.day, list);
+  }
+  const result = new Map<string, DeuchanDayItem[]>();
+  for (const [day, list] of byDay) {
+    result.set(
+      day,
+      [...list.values()]
+        .map(({ perDevice, ...item }) => ({
+          ...item,
+          devices: [...perDevice.entries()].sort((a, b) => b[1] - a[1]).map(([device]) => device),
+          secondsByDevice: Object.fromEntries(perDevice),
+        }))
+        .sort((a, b) => b.seconds - a.seconds),
+    );
+  }
+  return result;
+}
+
+/**
+ * Titles of the items Deuchan saw on each day (Deuchan's day), for matching a card's source title:
  * day → normalized title → content id.
  */
 export function deuchanTitlesByDay(db: Database, timeZone: string): Map<string, Map<string, string>> {
-  const events = loadEvents(db);
+  const events = loadDeuchanEvents(db);
   const byDay = new Map<string, Map<string, string>>();
-  const add = (day: string, title: string | undefined, videoId: string) => {
+  const add = (day: string, title: string | undefined, contentId: string) => {
     if (!title) return;
     const titles = byDay.get(day) ?? new Map<string, string>();
-    titles.set(normalizeTitle(title), videoContentId(videoId));
+    titles.set(normalizeTitle(title), contentId);
     byDay.set(day, titles);
   };
   for (const event of countedIntervals(events, timeZone))
-    add(dayKey(event.to, timeZone, 0), event.title, event.videoId);
+    add(dayKey(event.to, timeZone, 0), event.title, deuchanContentId(event));
   for (const event of events) {
     if (event.kind === "day_total")
-      for (const video of event.videos ?? []) add(event.day, video.title, video.videoId);
+      for (const video of event.videos ?? []) add(event.day, video.title, deuchanContentId(video));
   }
   return byDay;
 }

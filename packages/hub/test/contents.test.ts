@@ -74,7 +74,8 @@ beforeEach(() => {
   snapshot("2026-11-11", 2, 300);
   snapshot("2026-11-12", 3, 60);
   run(
-    `INSERT INTO day_totals (source, day, seconds, at) VALUES ('deuchan', '2026-11-11', 300, 2), ('deuchan', '2026-11-12', 60, 3)`,
+    `INSERT INTO day_totals (source, device, day, seconds, at, event_id) VALUES
+     ('deuchan', 'principal', '2026-11-11', 300, 2, 'd:2026-11-11:2'), ('deuchan', 'principal', '2026-11-12', 60, 3, 'd:2026-11-12:3')`,
   );
 });
 

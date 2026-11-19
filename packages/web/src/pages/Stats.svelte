@@ -78,7 +78,7 @@
           return [
             `<b>${WEEKDAYS[day.weekday]}</b> (${day.count} días)`,
             `Promedio ${duration(day.average)}`,
-            `· juegos ${duration(day.averageGsm)} · YouTube ${duration(day.averageDeuchan)}`,
+            `· juegos ${duration(day.averageGsm)} · Deuchan ${duration(day.averageDeuchan)}`,
             `Mediana ${duration(day.median)}`,
           ].join("<br>");
         },
@@ -96,7 +96,7 @@
         ),
         barSeries(
           theme,
-          "YouTube (Deuchan)",
+          "Deuchan",
           theme.youtube,
           rhythm.map((day) => toMinutes(day.averageDeuchan)),
           true,
@@ -259,7 +259,7 @@
             <th scope="col" class="num">Inmersión</th>
             <th scope="col" class="num">Cambio</th>
             <th scope="col" class="num">Juegos</th>
-            <th scope="col" class="num">YouTube</th>
+            <th scope="col" class="num">Deuchan</th>
             <th scope="col" class="num">Días activos</th>
             <th scope="col" class="num">Repasos</th>
             <th scope="col" class="num">Minadas</th>

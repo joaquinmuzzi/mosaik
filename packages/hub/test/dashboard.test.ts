@@ -42,7 +42,8 @@ beforeEach(() => {
 
   // Deuchan: totals for two days (one of them zero), and the snapshot with its videos
   run(
-    `INSERT INTO day_totals (source, day, seconds, at) VALUES ('deuchan', '2026-11-12', 600, 1), ('deuchan', '2026-11-14', 0, 2)`,
+    `INSERT INTO day_totals (source, device, day, seconds, at, event_id) VALUES
+     ('deuchan', 'principal', '2026-11-12', 600, 1, 'd1'), ('deuchan', 'principal', '2026-11-14', 0, 2, 'd2')`,
   );
   run(
     `INSERT INTO raw_events (id, source, kind, received_at, payload) VALUES ('d1', 'deuchan', 'day_total', 0, ?)`,
@@ -152,7 +153,13 @@ describe("dayDetail", () => {
       ],
       otherLanguageSeconds: 0,
     });
-    expect(detail.deuchan).toEqual({ seconds: null, snapshotAt: null, videos: [] });
+    expect(detail.deuchan).toEqual({
+      seconds: null,
+      readingSeconds: 0,
+      devices: [],
+      snapshotAt: null,
+      videos: [],
+    });
     expect(detail.anki).toMatchObject({ reviews: 1, newCards: 1, byType: { learning: 1 } });
     expect(detail.anki.mined).toEqual([
       expect.objectContaining({ word: "Wort", origin: "gsm", contentTitle: "Beispiel Spiel" }),
@@ -163,10 +170,28 @@ describe("dayDetail", () => {
     expect(dayDetail(db, OPTIONS, "2026-11-14").gsm).toMatchObject({ seconds: 0, otherLanguageSeconds: 50 });
     expect(dayDetail(db, OPTIONS, "2026-11-12").deuchan).toEqual({
       seconds: 600,
+      readingSeconds: 0,
+      devices: [{ device: "principal", seconds: 600, at: 1 }],
       snapshotAt: 1,
       videos: [
-        { videoId: "bbbbbbbbbbb", title: "Lang", seconds: 500 },
-        { videoId: "aaaaaaaaaaa", title: "Kurz", seconds: 100 },
+        {
+          id: "yt:bbbbbbbbbbb",
+          videoId: "bbbbbbbbbbb",
+          title: "Lang",
+          url: "https://www.youtube.com/watch?v=bbbbbbbbbbb",
+          contentKind: "video",
+          seconds: 500,
+          devices: ["principal"],
+        },
+        {
+          id: "yt:aaaaaaaaaaa",
+          videoId: "aaaaaaaaaaa",
+          title: "Kurz",
+          url: "https://www.youtube.com/watch?v=aaaaaaaaaaa",
+          contentKind: "video",
+          seconds: 100,
+          devices: ["principal"],
+        },
       ],
     });
   });
