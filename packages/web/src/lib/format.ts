@@ -56,7 +56,7 @@ export function addDays(day: string, n: number): string {
 /** The words for each card origin. */
 export const ORIGIN_LABELS: Record<string, string> = {
   gsm: "Juegos (GSM)",
-  youtube: "YouTube",
+  youtube: "Video (Deuchan)",
   "refold-1k": "Refold 1k",
   unknown: "Sin origen",
 };
@@ -70,6 +70,6 @@ export const cleanLine = (text: string) => text.replace(/\s+/g, " ").trim();
 export const KIND_LABELS: Record<string, string> = {
   game: "Juego",
   video: "Video",
-  book: "Libro",
+  book: "Lectura",
   deck: "Mazo",
 };

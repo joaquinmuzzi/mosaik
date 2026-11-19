@@ -68,6 +68,7 @@ import type { Database } from "./db/database.ts";
 import { IMPORT_SUFFIX, looksLikeSqlite } from "./db/import.ts";
 import { schemaVersion } from "./db/migrate.ts";
 import { INGEST_BODY_LIMIT, ingestEvents } from "./ingest.ts";
+import { deuchanDays, parseDayRange } from "./api/deuchan-days.ts";
 import type { Scheduler } from "./scheduler.ts";
 
 /** The dashboard built by Vite (`packages/web/dist`), both from `src/` and from `dist/`. */
@@ -554,9 +555,21 @@ export async function buildServer({
     const result = ingestEvents(db, request.body, {
       attribution: { refoldDecks: config.ankiRefoldDecks, timeZone: config.timeZone },
       timeZone: config.timeZone,
+      device: deviceOf.get(request),
     });
     return reply.code(result.status).send(result.body);
   });
+
+  // What every Deuchan device sent for some days: each Deuchan shows the total of all of them.
+  // In server mode it needs a device token (the /api/agent/ rule above).
+  app.get<{ Querystring: { from?: string; to?: string } }>(
+    "/api/agent/deuchan/days",
+    async (request, reply) => {
+      const range = parseDayRange(request.query);
+      if ("error" in range) return reply.code(400).send({ error: "invalid_range", message: range.error });
+      return deuchanDays(db, range);
+    },
+  );
 
   app.post<{ Params: { source: string } }>("/api/sync/:source", async (request, reply) => {
     const { source } = request.params;

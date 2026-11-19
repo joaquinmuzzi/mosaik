@@ -174,7 +174,7 @@ export function immersionOption(
       : [
           { name: "Juegos (GSM)", color: theme.gsm, values: sum((day) => byDay.get(day)?.gsmSeconds ?? 0) },
           {
-            name: "YouTube (Deuchan)",
+            name: "Deuchan",
             color: theme.youtube,
             values: sum((day) => byDay.get(day)?.deuchanSeconds ?? 0),
           },

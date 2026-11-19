@@ -37,7 +37,8 @@
     fetchContent(wanted);
   });
 
-  const isVideo = $derived(data?.content.kind === "video");
+  // Deuchan's items (videos and reading counted by hand) have no lines or characters
+  const isVideo = $derived(data?.content.source === "deuchan");
   const color = (theme: Theme) => (isVideo ? theme.youtube : theme.gsm);
 
   const daysChart = $derived.by(() => {
@@ -89,10 +90,10 @@
     <div>
       <h2 class="title">{content.title ?? content.id}</h2>
       <p class="muted">
-        {KIND_LABELS[content.kind] ?? content.kind} · {isVideo
-          ? "YouTube, según Deuchan"
-          : "GameSentenceMiner"}
-        {#if content.url}· <a href={content.url} target="_blank" rel="noreferrer">abrir en YouTube</a>{/if}
+        {KIND_LABELS[content.kind] ?? content.kind} · {isVideo ? "según Deuchan" : "GameSentenceMiner"}
+        {#if content.url}· <a href={content.url} target="_blank" rel="noreferrer"
+            >abrir{content.url.includes("youtube.com/") ? " en YouTube" : ""}</a
+          >{/if}
       </p>
     </div>
   </header>
@@ -132,8 +133,8 @@
   </section>
   <p class="note">
     {#if isVideo}
-      Tiempo: lo que Deuchan le acreditó a este video cada día, en esta computadora. Para un video no se
-      muestra velocidad ni porcentaje: no aplican.
+      Tiempo: lo que Deuchan le acreditó a este video cada día, sumando todos los dispositivos. Para un video
+      no se muestra velocidad ni porcentaje: no aplican.
     {:else}
       Tiempo de lectura calculado como GSM, en alemán. Los caracteres se cuentan como GSM: sin espacios ni
       puntuación, así que la velocidad solo se compara con vos mismo.

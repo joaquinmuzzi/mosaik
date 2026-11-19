@@ -5,15 +5,15 @@
 
 export const NOTES = {
   day: (cutoff: number) =>
-    `Los días de Mosaik van de las ${cutoff}:00 a las ${cutoff}:00, como en Anki. El tiempo de YouTube es el que muestra Deuchan, que cuenta de medianoche a medianoche.`,
+    `Los días de Mosaik van de las ${cutoff}:00 a las ${cutoff}:00, como en Anki. El tiempo de Deuchan (videos y lectura que contaste a mano) cuenta de medianoche a medianoche.`,
   immersion:
-    "Inmersión = tiempo de lectura en GameSentenceMiner (solo sesiones en alemán) + tiempo de YouTube que contó Deuchan.",
+    "Inmersión = tiempo de lectura en GameSentenceMiner (solo sesiones en alemán) + tiempo de video y de lectura que contó Deuchan.",
   gsmTime:
     "Calculado como GSM: cada línea suma el tiempo hasta la siguiente, con un tope según tu ritmo de esa sesión; un hueco de más de 30 minutos corta la sesión y no cuenta.",
   youtubeTime:
-    "Lo que muestra el dashboard de Deuchan para cada día, con tus correcciones y el tiempo de otras computadoras sincronizadas.",
+    "La suma de lo que mandó Deuchan desde cada computadora y perfil de Chrome para cada día, con tus correcciones.",
   videoTime:
-    "Lo que Deuchan le acreditó a este video cada día, en esta computadora. Para un video no hay velocidad ni porcentaje: no aplican.",
+    "Lo que Deuchan le acreditó cada día, sumando todas las computadoras. Para un video no hay velocidad ni porcentaje: no aplican.",
   streak: "Días seguidos con algo de inmersión. Si hoy todavía no hiciste nada, cuenta desde ayer.",
   reviews:
     "Repasos como los cuenta Anki: aprendizaje, repaso, reaprendizaje y filtrado. Las reprogramaciones no cuentan.",

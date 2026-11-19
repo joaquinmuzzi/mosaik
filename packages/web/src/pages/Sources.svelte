@@ -65,7 +65,7 @@
     {
       href: "/api/export/days.csv",
       label: "Días (CSV)",
-      detail: "Un renglón por día: segundos de juego, de YouTube y en total, repasos y tarjetas minadas.",
+      detail: "Un renglón por día: segundos de juego, de Deuchan y en total, repasos y tarjetas minadas.",
     },
     {
       href: "/api/export/contents.csv",

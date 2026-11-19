@@ -47,6 +47,19 @@ Cualquier otra página web recibe `403`. No hay CORS: una extensión con permiso
   (suele ser un error de unidades).
 - Cada evento se valida por separado: uno inválido se rechaza sin perder el resto del lote.
 
+### Qué se vio o leyó: un ítem
+
+Cada intervalo, cada fila de `videos` y cada `video_removed` nombran un ítem con **`videoId` o `itemId`**
+(uno de los dos es obligatorio):
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `videoId` | string | ID de YouTube de 11 caracteres; el contenido es `yt:<videoId>` |
+| `itemId` | string `<espacio>:<id>` (≤ 200, sin espacios) | cualquier otra cosa, p. ej. `web:<hash>` para un video de Twitch o un cómic; es el id del contenido |
+| `url` | string `http(s)://…` ≤ 2000, opcional | el link que muestra Mosaik; sin ella, a un `videoId` se le arma la de YouTube |
+| `site` | string ≤ 100, opcional | p. ej. `"twitch.tv"` |
+| `contentKind` | `"video"` (por defecto) o `"reading"` | `reading` es tiempo de lectura contado a mano: contenido de tipo libro y sesiones de lectura |
+
 ### `watch_interval`: un tramo visto de un video
 
 | Campo | Tipo | Notas |
@@ -57,7 +70,7 @@ Cualquier otra página web recibe `403`. No hay CORS: una extensión con permiso
 | `language` | string | etiqueta de idioma: `"de"`, `"de-AT"` |
 | `from`, `to` | int, ms | `to > from` |
 | `seconds` | number > 0, ≤ 21600 | tiempo **acreditado**; puede ser menor que `(to - from) / 1000` si otra pestaña ya sonaba en parte de ese tramo, nunca mayor (+1 s de tolerancia) |
-| `videoId` | string | ID de YouTube de 11 caracteres |
+| `videoId` / `itemId`, `url`, `site`, `contentKind` | | el ítem (ver arriba) |
 | `title` | string ≤ 500, opcional | |
 | `channelId` | string ≤ 100, opcional | |
 
@@ -69,19 +82,21 @@ hueco entre ellos es menor a 10 minutos.
 
 | Campo | Tipo | Notas |
 |---|---|---|
-| `id` | string | uno nuevo por foto, p. ej. `deuchan:day:<day>:<at>` |
+| `id` | string | uno nuevo por foto, p. ej. `deuchan:day:<day>:<at>` (único también entre dispositivos) |
 | `source`, `kind` | `"deuchan"`, `"day_total"` | |
 | `language` | string | |
 | `day` | `YYYY-MM-DD` | el día **de la fuente** (Deuchan corta a medianoche; el hub, a las 4:00) |
 | `at` | int, ms | cuándo se sacó la foto |
-| `seconds` | number, 0 – 90000 | lo que la fuente muestra ese día, **con las correcciones del usuario** |
-| `videos` | lista opcional, ≤ 200 | `{ videoId, title (≤ 500), seconds }` |
+| `seconds` | number, 0 – 90000 | lo que se vio o leyó **en este dispositivo** ese día, con las correcciones del usuario |
+| `readingSeconds` | number, opcional | la parte de `seconds` que es lectura contada a mano |
+| `videos` | lista opcional, ≤ 200 | `{ videoId o itemId, url?, site?, contentKind?, title (≤ 500), seconds }` |
 
-Por cada `day` el hub se queda con la foto de `at` más nuevo. Se manda en el backfill del historial y cada
-vez que un día cambia (minutos nuevos o una corrección). Para el total diario manda `day_total`; los
-intervalos dan el detalle (a qué hora, qué video). El total **nunca** se deriva de `videos`: Deuchan pone ahí
-solo los videos de esta computadora, mientras que `seconds` incluye las otras computadoras sincronizadas. Si
-dos computadoras mandan fotos del mismo día, las dos traen el total ya combinado y gana la más nueva.
+Cada instalación de Deuchan (cada computadora y cada perfil de Chrome) es un **dispositivo** con su propio
+token, y manda solo lo suyo. Por cada dispositivo y `day` el hub se queda con la foto de `at` más nuevo, y el
+día es la **suma** de los dispositivos. En modo local, sin token, el dispositivo es el de la computadora del hub
+(`principal`). Se manda en el backfill del historial y cada vez que un día cambia (minutos nuevos o una
+corrección). Para el total diario manda `day_total`; los intervalos dan el detalle (a qué hora, qué video). El
+total **nunca** se deriva de `videos` ni de los intervalos.
 
 ### `video_removed`: el usuario sacó un video de un día
 
@@ -91,19 +106,33 @@ dos computadoras mandan fotos del mismo día, las dos traen el total ya combinad
 | `source`, `kind` | `"deuchan"`, `"video_removed"` | |
 | `day` | `YYYY-MM-DD` | |
 | `at` | int, ms | |
-| `videoId` | string | |
+| `videoId` o `itemId` | string | |
 
-El tiempo de ese video en ese día deja de contar en las sesiones del hub. La fuente manda además una
+El tiempo de ese ítem en ese día deja de contar en las sesiones del hub. La fuente manda además una
 `day_total` nueva de ese día. Puede traer `language` (opcional; Deuchan lo manda como en todos los eventos).
 
 ## Qué hace el hub con los eventos
 
-- Los guarda tal cual en `raw_events` y reconstruye las filas de Deuchan del modelo común.
-- Cada video es un contenido `yt:<videoId>`, con el título más reciente que se vio.
-- Los intervalos del mismo video separados por menos de **10 minutos** forman una sesión.
-- El total de cada día va a `day_totals`, desde la foto más nueva.
+- Los guarda tal cual en `raw_events`, con el dispositivo que los mandó, y reconstruye las filas de Deuchan del
+  modelo común.
+- Cada ítem es un contenido (`yt:<videoId>` o su `itemId`), con el título más reciente que se vio y su `url`.
+- Los intervalos del mismo ítem en el mismo dispositivo separados por menos de **10 minutos** forman una sesión.
+- El total de cada día y dispositivo va a `day_totals`, desde la foto más nueva.
 - Las tarjetas cuyo `MiscInfo` (limpio) coincide con el título de un video que Deuchan vio ese día o el
   anterior quedan con origen `youtube` y ese video (regla 3 de `docs/plan.md`).
+
+## Leer los días de todos los dispositivos
+
+```
+GET /api/agent/deuchan/days?from=2026-11-01&to=2026-11-18     (hasta 400 días; con el token en el servidor)
+→ 200 { "days": { "2026-11-18": {
+          "seconds": 1000, "readingSeconds": 0,
+          "devices": { "principal": 600, "joaquin": 400 },
+          "items": [ { "id": "yt:…", "title": "…", "url": "https://…", "contentKind": "video",
+                       "seconds": 700, "devices": { "principal": 600, "joaquin": 100 } } ] } } }
+```
+
+Para que cada Deuchan muestre el total de todos. Un día sin fotos no aparece. Un rango inválido da `400`.
 
 ## Respuesta
 

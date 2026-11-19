@@ -79,10 +79,18 @@ export interface DayGsmSession {
 }
 
 export interface DayVideo {
-  videoId: string;
+  /** The content: `yt:<videoId>` for YouTube, `web:<hash>` for anything else. */
+  id: string;
+  /** Only for YouTube. */
+  videoId: string | null;
   title: string | null;
-  /** Seconds Deuchan credited to the video that day (this computer only). */
+  url: string | null;
+  /** "reading" for time counted by hand (comics, for example). */
+  contentKind: "video" | "reading";
+  /** Seconds Deuchan credited to it that day, on all devices. */
   seconds: number;
+  /** The devices it was watched or read on, most seconds first. */
+  devices: string[];
 }
 
 export interface DayMinedCard {
@@ -99,7 +107,17 @@ export interface DayDetailResponse {
   cutoffHour: number;
   timeZone: string;
   gsm: { seconds: number; sessions: DayGsmSession[]; otherLanguageSeconds: number };
-  deuchan: { seconds: number | null; snapshotAt: number | null; videos: DayVideo[] };
+  deuchan: {
+    /** The sum of the devices, or null if Deuchan sent nothing for that day. */
+    seconds: number | null;
+    /** The part of `seconds` counted by hand as reading. */
+    readingSeconds: number;
+    /** Each device's own total for the day. */
+    devices: { device: string; seconds: number; at: number }[];
+    /** The newest snapshot of any device. */
+    snapshotAt: number | null;
+    videos: DayVideo[];
+  };
   anki: {
     reviews: number;
     byType: { learning: number; review: number; relearning: number; filtered: number };

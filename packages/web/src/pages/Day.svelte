@@ -45,7 +45,7 @@
   <p class="total">
     <span class="value">{duration(total)}</span> de inmersión
     {#if data.gsm.seconds > 0 && (data.deuchan.seconds ?? 0) > 0}
-      ({duration(data.gsm.seconds)} en juegos + {duration(data.deuchan.seconds ?? 0)} en YouTube)
+      ({duration(data.gsm.seconds)} en juegos + {duration(data.deuchan.seconds ?? 0)} en Deuchan)
     {/if}
     · {number.format(data.anki.reviews)} repasos · {number.format(data.anki.mined.length)} tarjetas minadas
   </p>
@@ -102,13 +102,18 @@
 
   <section class="card" aria-labelledby="yt-title">
     <h3 id="yt-title">
-      <span class="swatch youtube" aria-hidden="true"></span>YouTube (Deuchan): {data.deuchan.seconds === null
+      <span class="swatch youtube" aria-hidden="true"></span>Deuchan: {data.deuchan.seconds === null
         ? "sin datos"
         : duration(data.deuchan.seconds)}
     </h3>
     <p class="note">
-      Es lo que muestra el dashboard de Deuchan para este día, con tus correcciones y el tiempo de otras
-      computadoras sincronizadas. Deuchan cuenta los días de medianoche a medianoche.
+      La suma de lo que mandó cada computadora y perfil de Chrome, con tus correcciones.
+      {#if data.deuchan.readingSeconds > 0}De eso, {duration(data.deuchan.readingSeconds)} es lectura que contaste
+        a mano.{/if}
+      {#if data.deuchan.devices.length > 1}({data.deuchan.devices
+          .map((device) => `${device.device}: ${duration(device.seconds)}`)
+          .join(" · ")}){/if}
+      Deuchan cuenta los días de medianoche a medianoche.
       {#if data.deuchan.snapshotAt}Último dato: {timeOf(
           data.deuchan.snapshotAt,
           data.timeZone,
@@ -119,18 +124,23 @@
       <table>
         <thead>
           <tr>
-            <th scope="col">Video (de esta computadora)</th>
+            <th scope="col">Video o lectura</th>
+            <th scope="col">Dónde</th>
             <th scope="col" class="num">Tiempo</th>
           </tr>
         </thead>
         <tbody>
-          {#each data.deuchan.videos as video (video.videoId)}
+          {#each data.deuchan.videos as video (video.id)}
             <tr>
               <td>
-                <a href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noreferrer">
-                  {video.title || video.videoId}
-                </a>
+                {#if video.contentKind === "reading"}<span class="muted">Lectura ·</span>{/if}
+                {#if video.url}
+                  <a href={video.url} target="_blank" rel="noreferrer">{video.title || video.url}</a>
+                {:else}
+                  {video.title || video.id}
+                {/if}
               </td>
+              <td class="muted">{video.devices.join(", ")}</td>
               <td class="num">{duration(video.seconds)}</td>
             </tr>
           {/each}

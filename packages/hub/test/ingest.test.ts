@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { type Database, openDatabase } from "../src/db/database.ts";
 import { applyMigrations } from "../src/db/migrate.ts";
 import { normalizeTitle, youtubeVideoIdOf } from "../src/derive/deuchan.ts";
+import { ingestEvents } from "../src/ingest.ts";
 import { createScheduler } from "../src/scheduler.ts";
 import { buildServer } from "../src/server.ts";
 import { silentLogger, tempDir, testConfig } from "./helpers.ts";
@@ -267,5 +268,158 @@ describe("title and URL helpers", () => {
     expect(youtubeVideoIdOf("https://youtu.be/sqNV-C54MWI?t=10")).toBe(VIDEO);
     expect(youtubeVideoIdOf("https://www.youtube.com/shorts/sqNV-C54MWI")).toBe(VIDEO);
     expect(youtubeVideoIdOf("https://example.com/watch?v=sqNV-C54MWI")).toBeNull();
+  });
+});
+
+describe("Deuchan on several devices", () => {
+  const T = Date.UTC(2026, 10, 14, 19, 0);
+  const DAY = "2026-11-14";
+  const config = testConfig();
+  const sendFrom = (device: string, events: unknown[]) =>
+    ingestEvents(
+      db,
+      { events },
+      {
+        attribution: { refoldDecks: config.ankiRefoldDecks, timeZone: config.timeZone },
+        timeZone: config.timeZone,
+        device,
+      },
+    );
+  const snapshot = (device: string, at: number, seconds: number, videos: unknown[], extra = {}) => ({
+    id: `deuchan:day:${DAY}:${device}:${at}`,
+    source: "deuchan",
+    kind: "day_total",
+    language: "de",
+    day: DAY,
+    at,
+    seconds,
+    videos,
+    ...extra,
+  });
+  const web = {
+    itemId: "web:abc123",
+    url: "https://www.twitch.tv/videos/1",
+    site: "twitch.tv",
+    title: "Stream",
+  };
+
+  it("adds up the devices of a day and lists the items of all of them", async () => {
+    await setup();
+    sendFrom("principal", [
+      snapshot("principal", T, 600, [{ videoId: VIDEO, title: "Tagesschau", seconds: 600 }]),
+    ]);
+    sendFrom("joaquin", [
+      snapshot("joaquin", T + 10, 400, [
+        { videoId: VIDEO, title: "Tagesschau", seconds: 100 },
+        { ...web, seconds: 300 },
+      ]),
+    ]);
+    expect(rows("SELECT device, seconds FROM day_totals ORDER BY device")).toEqual([
+      { device: "joaquin", seconds: 400 },
+      { device: "principal", seconds: 600 },
+    ]);
+    const days = await app.inject({
+      method: "GET",
+      url: `/api/agent/deuchan/days?from=${DAY}&to=${DAY}`,
+      headers: HOST,
+    });
+    expect(days.statusCode).toBe(200);
+    expect(days.json()).toEqual({
+      days: {
+        [DAY]: {
+          seconds: 1000,
+          readingSeconds: 0,
+          devices: { joaquin: 400, principal: 600 },
+          items: [
+            {
+              id: `yt:${VIDEO}`,
+              title: "Tagesschau",
+              url: `https://www.youtube.com/watch?v=${VIDEO}`,
+              contentKind: "video",
+              seconds: 700,
+              devices: { principal: 600, joaquin: 100 },
+            },
+            {
+              id: "web:abc123",
+              title: "Stream",
+              url: "https://www.twitch.tv/videos/1",
+              contentKind: "video",
+              seconds: 300,
+              devices: { joaquin: 300 },
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  it("replaces a device's snapshot with its newer one, without touching the others", async () => {
+    await setup();
+    sendFrom("principal", [snapshot("principal", T, 600, [])]);
+    sendFrom("joaquin", [snapshot("joaquin", T + 10, 400, [])]);
+    sendFrom("principal", [snapshot("principal", T + 20, 200, [])]);
+    sendFrom("principal", [snapshot("principal", T + 5, 999, [])]);
+    expect(rows("SELECT device, seconds FROM day_totals ORDER BY device")).toEqual([
+      { device: "joaquin", seconds: 400 },
+      { device: "principal", seconds: 200 },
+    ]);
+  });
+
+  it("keeps the url of items from other sites and counts reading as reading", async () => {
+    await setup();
+    sendFrom("joaquin", [
+      interval(T, T + 60_000, { videoId: undefined, ...web }),
+      interval(T, T + 120_000, {
+        videoId: undefined,
+        itemId: "web:comic1",
+        url: "https://example.com/comic",
+        title: "Asterix",
+        contentKind: "reading",
+      }),
+      snapshot("joaquin", T + 200_000, 180, [], { readingSeconds: 120 }),
+    ]);
+    expect(rows("SELECT id, kind, title, external_id, meta FROM contents ORDER BY id")).toEqual([
+      {
+        id: "web:abc123",
+        kind: "video",
+        title: "Stream",
+        external_id: null,
+        meta: JSON.stringify({ url: "https://www.twitch.tv/videos/1" }),
+      },
+      {
+        id: "web:comic1",
+        kind: "book",
+        title: "Asterix",
+        external_id: null,
+        meta: JSON.stringify({ url: "https://example.com/comic" }),
+      },
+    ]);
+    expect(rows("SELECT content_id, medium, device FROM sessions ORDER BY content_id")).toEqual([
+      { content_id: "web:abc123", medium: "video", device: "joaquin" },
+      { content_id: "web:comic1", medium: "reading", device: "joaquin" },
+    ]);
+    expect(rows("SELECT reading_seconds FROM day_totals")).toEqual([{ reading_seconds: 120 }]);
+  });
+
+  it("rejects an item without videoId or itemId", async () => {
+    await setup();
+    const result = sendFrom("joaquin", [interval(T, T + 60_000, { videoId: undefined })]);
+    expect(result.body).toMatchObject({ accepted: 0, rejected: [{ index: 0 }] });
+  });
+
+  it("answers 400 to a bad range of days", async () => {
+    await setup();
+    const bad = await app.inject({
+      method: "GET",
+      url: "/api/agent/deuchan/days?from=2026-11-20&to=2026-11-10",
+      headers: HOST,
+    });
+    expect(bad.statusCode).toBe(400);
+    const tooLong = await app.inject({
+      method: "GET",
+      url: "/api/agent/deuchan/days?from=2024-01-01&to=2026-01-01",
+      headers: HOST,
+    });
+    expect(tooLong.statusCode).toBe(400);
   });
 });

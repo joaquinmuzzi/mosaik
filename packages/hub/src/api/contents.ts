@@ -19,6 +19,7 @@ import type {
 import { dayKey } from "@mosaik/shared";
 import type { Database } from "../db/database.ts";
 import type { DashboardOptions } from "./dashboard.ts";
+import { snapshotItemsByDay } from "../derive/deuchan.ts";
 import { gsmContentAliases } from "../derive/gsm.ts";
 
 interface ContentRow {
@@ -29,6 +30,18 @@ interface ContentRow {
   external_id: string | null;
   total_units: number | null;
   unit: string | null;
+  meta: string | null;
+}
+
+/** The address stored in a content's meta (Deuchan items from any site). */
+function urlOf(meta: string | null): string | null {
+  if (!meta) return null;
+  try {
+    const parsed = JSON.parse(meta) as { url?: unknown };
+    return typeof parsed.url === "string" ? parsed.url : null;
+  } catch {
+    return null;
+  }
 }
 
 interface VideoTotals {
@@ -36,24 +49,18 @@ interface VideoTotals {
   days: Map<string, number>;
 }
 
-/** Per video: seconds credited by Deuchan, per day, from the newest snapshot of each day. */
+/**
+ * Per Deuchan item (content id): seconds credited, per day, from the newest snapshot of each device
+ * and day.
+ */
 export function videoTotals(db: Database): Map<string, VideoTotals> {
   const totals = new Map<string, VideoTotals>();
-  const rows = db
-    .prepare(
-      `SELECT d.day, e.payload FROM day_totals d JOIN raw_events e
-         ON e.source = 'deuchan' AND e.kind = 'day_total'
-        AND json_extract(e.payload, '$.day') = d.day AND json_extract(e.payload, '$.at') = d.at
-       WHERE d.source = 'deuchan'`,
-    )
-    .all() as { day: string; payload: string }[];
-  for (const row of rows) {
-    const event = JSON.parse(row.payload) as { videos?: { videoId: string; seconds: number }[] };
-    for (const video of event.videos ?? []) {
-      const entry = totals.get(video.videoId) ?? { seconds: 0, days: new Map<string, number>() };
-      entry.seconds += video.seconds;
-      entry.days.set(row.day, (entry.days.get(row.day) ?? 0) + video.seconds);
-      totals.set(video.videoId, entry);
+  for (const [day, items] of snapshotItemsByDay(db)) {
+    for (const item of items) {
+      const entry = totals.get(item.contentId) ?? { seconds: 0, days: new Map<string, number>() };
+      entry.seconds += item.seconds;
+      entry.days.set(day, (entry.days.get(day) ?? 0) + item.seconds);
+      totals.set(item.contentId, entry);
     }
   }
   return totals;
@@ -117,7 +124,7 @@ function summarize(
 
   return rows.map((row) => {
     const own = sessions.get(row.id);
-    const video = row.source === "deuchan" && row.external_id ? videos.get(row.external_id) : undefined;
+    const video = row.source === "deuchan" ? videos.get(row.id) : undefined;
     const days = [
       ...(own ? [day(own.first), day(own.last)] : []),
       ...(video ? [...video.days.keys()] : []),
@@ -148,7 +155,7 @@ function summarize(
 
 export function listContents(db: Database, options: DashboardOptions): ContentsResponse {
   const rows = db
-    .prepare("SELECT id, source, kind, title, external_id, total_units, unit FROM contents")
+    .prepare("SELECT id, source, kind, title, external_id, total_units, unit, meta FROM contents")
     .all() as unknown as ContentRow[];
   const contents = summarize(db, options, rows)
     .map(({ row: _row, ...summary }) => summary)
@@ -175,7 +182,9 @@ export function contentDetail(
   id: string,
 ): ContentDetailResponse | null {
   const row = db
-    .prepare("SELECT id, source, kind, title, external_id, total_units, unit FROM contents WHERE id = ?")
+    .prepare(
+      "SELECT id, source, kind, title, external_id, total_units, unit, meta FROM contents WHERE id = ?",
+    )
     .get(id) as ContentRow | undefined;
   if (!row) return null;
   const [summary] = summarize(db, options, [row]);
@@ -208,8 +217,8 @@ export function contentDetail(
 
   // Time per day: the reading time of each line (GSM), or what Deuchan credited the video each day
   const days = new Map<string, number>();
-  if (row.source === "deuchan" && row.external_id) {
-    for (const [key, seconds] of videoTotals(db).get(row.external_id)?.days ?? []) days.set(key, seconds);
+  if (row.source === "deuchan") {
+    for (const [key, seconds] of videoTotals(db).get(row.id)?.days ?? []) days.set(key, seconds);
   } else {
     for (const line of db
       .prepare(
@@ -247,7 +256,10 @@ export function contentDetail(
       ...content,
       externalId: row.external_id,
       url:
-        row.kind === "video" && row.external_id ? `https://www.youtube.com/watch?v=${row.external_id}` : null,
+        urlOf(row.meta) ??
+        (row.kind === "video" && row.external_id
+          ? `https://www.youtube.com/watch?v=${row.external_id}`
+          : null),
       totalUnits: row.total_units,
       unit: row.unit,
     },

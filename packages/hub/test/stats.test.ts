@@ -58,7 +58,13 @@ function seed(): Database {
       `d:${day}`,
       JSON.stringify({ day, at, seconds, videos: [{ videoId: "aaaaaaaaaaa", seconds }] }),
     );
-    run(`INSERT INTO day_totals (source, day, seconds, at) VALUES ('deuchan', ?, ?, ?)`, day, seconds, at);
+    run(
+      `INSERT INTO day_totals (source, device, day, seconds, at, event_id) VALUES ('deuchan', 'principal', ?, ?, ?, ?)`,
+      day,
+      seconds,
+      at,
+      `d:${day}`,
+    );
   }
   run(
     `INSERT INTO cards (note_id, word, deck, model, origin, content_id, created_ts) VALUES

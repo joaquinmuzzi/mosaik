@@ -164,7 +164,7 @@
         </li>
         <li>
           <span class="k-share-name"
-            ><span class="tile" style:background="var(--series-youtube)"></span>YouTube</span
+            ><span class="tile" style:background="var(--series-youtube)"></span>Deuchan</span
           >
           <span class="figure">{duration(monthYoutube)}</span>
           <span class="k-bar" aria-hidden="true"

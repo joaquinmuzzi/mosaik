@@ -7,6 +7,7 @@
  * the cards are rebuilt. The source's state (`connector_state`) shows when it last sent something.
  */
 import {
+  DEFAULT_DEVICE,
   type IngestRejection,
   type IngestResponse,
   ingestBatchSchema,
@@ -23,6 +24,8 @@ export const INGEST_BODY_LIMIT = 16 * 1024 * 1024;
 export interface IngestOptions {
   attribution: AttributionOptions;
   timeZone: string;
+  /** The device that sent the batch (its token's); the hub's own computer when there is none. */
+  device?: string | undefined;
   now?: () => number;
 }
 
@@ -42,6 +45,7 @@ export function ingestEvents(db: Database, body: unknown, options: IngestOptions
   }
 
   const now = (options.now ?? Date.now)();
+  const device = options.device ?? DEFAULT_DEVICE;
   const rejected: IngestRejection[] = [];
   let accepted = 0;
   let duplicates = 0;
@@ -49,7 +53,7 @@ export function ingestEvents(db: Database, body: unknown, options: IngestOptions
 
   transaction(db, () => {
     const insert = db.prepare(
-      "INSERT OR IGNORE INTO raw_events (id, source, kind, received_at, payload) VALUES (?, ?, ?, ?, ?)",
+      "INSERT OR IGNORE INTO raw_events (id, source, kind, received_at, payload, device) VALUES (?, ?, ?, ?, ?, ?)",
     );
     batch.data.events.forEach((input, index) => {
       const parsed = parseIngestEvent(input);
@@ -62,7 +66,7 @@ export function ingestEvents(db: Database, body: unknown, options: IngestOptions
         return;
       }
       const { event } = parsed;
-      const result = insert.run(event.id, event.source, event.kind, now, JSON.stringify(event));
+      const result = insert.run(event.id, event.source, event.kind, now, JSON.stringify(event), device);
       if (Number(result.changes) > 0) {
         accepted += 1;
         sources.add(event.source);
@@ -87,14 +91,13 @@ export function ingestEvents(db: Database, body: unknown, options: IngestOptions
       };
     }
     // Even a batch of duplicates means the source is alive
-    markRunStarted(db, DEUCHAN_SOURCE, now);
+    markRunStarted(db, DEUCHAN_SOURCE, now, device);
     if (summary) {
-      markRunSucceeded(db, DEUCHAN_SOURCE, now, { summary });
+      markRunSucceeded(db, DEUCHAN_SOURCE, now, { summary }, device);
     } else {
-      db.prepare("UPDATE connector_state SET last_ok_at = ?, last_error = NULL WHERE source = ?").run(
-        now,
-        DEUCHAN_SOURCE,
-      );
+      db.prepare(
+        "UPDATE connector_state SET last_ok_at = ?, last_error = NULL WHERE source = ? AND device = ?",
+      ).run(now, DEUCHAN_SOURCE, device);
     }
   });
 

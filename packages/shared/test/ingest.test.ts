@@ -45,6 +45,32 @@ describe("parseIngestEvent", () => {
     expect(parseIngestEvent(event)).toEqual({ ok: true, event });
   });
 
+  it("accepts an item of another site, or read by hand, instead of a YouTube video", () => {
+    const { videoId: _, ...rest } = interval;
+    const web = { ...rest, itemId: "web:3f2a", url: "https://www.twitch.tv/videos/1", site: "twitch.tv" };
+    expect(parseIngestEvent(web)).toEqual({ ok: true, event: web });
+    const reading = { ...web, contentKind: "reading" };
+    expect(parseIngestEvent(reading)).toEqual({ ok: true, event: reading });
+    expect(parseIngestEvent(rest)).toMatchObject({ ok: false, error: expect.stringContaining("itemId") });
+    expect(parseIngestEvent({ ...web, url: "javascript:alert(1)" })).toMatchObject({ ok: false });
+    expect(parseIngestEvent({ ...web, itemId: "no namespace" })).toMatchObject({ ok: false });
+  });
+
+  it("accepts a day total with reading time and items of other sites", () => {
+    const event = {
+      id: "deuchan:day:2026-11-14:1",
+      source: "deuchan",
+      kind: "day_total",
+      language: "de",
+      day: "2026-11-14",
+      at: 1_763_150_000_000,
+      seconds: 600,
+      readingSeconds: 300,
+      videos: [{ itemId: "web:comic", title: "Asterix", contentKind: "reading", seconds: 300 }],
+    };
+    expect(parseIngestEvent(event)).toEqual({ ok: true, event });
+  });
+
   it("rejects an interval that ends before it starts, keeping its id", () => {
     const result = parseIngestEvent({ ...interval, to: interval.from - 1 });
     expect(result).toMatchObject({ ok: false, id: interval.id });

@@ -28,6 +28,39 @@ const language = z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/);
 const dayString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const youtubeVideoId = z.string().regex(/^[A-Za-z0-9_-]{11}$/);
 const title = z.string().max(500);
+/**
+ * An item that is not a YouTube video: a namespaced id chosen by the source, such as `web:<hash>` for
+ * a video on another site or a page read by hand.
+ */
+const itemId = z.string().regex(/^[a-z]+:\S{1,190}$/);
+const url = z
+  .string()
+  .max(2000)
+  .regex(/^https?:\/\//);
+/** What the time was spent on. Reading is counted by hand (comics, for example). */
+export const contentKindSchema = z.enum(["video", "reading"]);
+export type ContentKind = z.infer<typeof contentKindSchema>;
+
+/** Fields that name what was watched or read: a YouTube `videoId`, or an `itemId` for anything else. */
+const itemFields = {
+  videoId: youtubeVideoId.optional(),
+  itemId: itemId.optional(),
+  url: url.optional(),
+  /** The site, for example "twitch.tv". */
+  site: z.string().min(1).max(100).optional(),
+  contentKind: contentKindSchema.optional(),
+};
+const hasItem = (item: { videoId?: string | undefined; itemId?: string | undefined }) =>
+  item.videoId !== undefined || item.itemId !== undefined;
+const itemMessage = { message: "videoId or itemId is required", path: ["videoId"] };
+
+/** The id of the content an item is about: `yt:<videoId>` for YouTube, else its `itemId`. */
+export function deuchanContentId(item: {
+  videoId?: string | undefined;
+  itemId?: string | undefined;
+}): string {
+  return item.videoId !== undefined ? `yt:${item.videoId}` : item.itemId!;
+}
 
 /**
  * Some seconds of a video that were watched, between `from` and `to`. `seconds` is the time credited,
@@ -42,10 +75,11 @@ export const watchIntervalEventSchema = z
     from: epochMs,
     to: epochMs,
     seconds: z.number().positive().max(MAX_INTERVAL_SECONDS),
-    videoId: youtubeVideoId,
+    ...itemFields,
     title: title.optional(),
     channelId: z.string().min(1).max(100).optional(),
   })
+  .refine(hasItem, itemMessage)
   .refine((event) => event.to > event.from, { message: "to must be after from", path: ["to"] })
   // One second of slack for rounding
   .refine((event) => event.seconds <= (event.to - event.from) / 1000 + 1, {
@@ -55,8 +89,10 @@ export const watchIntervalEventSchema = z
 
 /**
  * A snapshot of what the source shows for a whole day, corrections included. Sent as a backfill of
- * the history and again whenever a recent day changes. For each day the hub keeps the snapshot with
- * the newest `at`; give every snapshot its own `id` (for example `deuchan:day:<day>:<at>`).
+ * the history and again whenever a recent day changes. It holds only what was watched or read on the
+ * device that sends it: for each device and day the hub keeps the snapshot with the newest `at`, and a
+ * day is the sum of its devices. Give every snapshot its own `id` (for example
+ * `deuchan:day:<day>:<at>`).
  * `day` is the source's own calendar day, which may not start at the hub's cutoff hour.
  */
 export const dayTotalEventSchema = z.object({
@@ -68,23 +104,32 @@ export const dayTotalEventSchema = z.object({
   /** When the snapshot was taken. */
   at: epochMs,
   seconds: z.number().min(0).max(MAX_DAY_SECONDS),
+  /** The part of `seconds` counted by hand as reading. */
+  readingSeconds: z.number().min(0).max(MAX_DAY_SECONDS).optional(),
   videos: z
-    .array(z.object({ videoId: youtubeVideoId, title, seconds: z.number().min(0).max(MAX_DAY_SECONDS) }))
+    .array(
+      z
+        .object({ ...itemFields, title, seconds: z.number().min(0).max(MAX_DAY_SECONDS) })
+        .refine(hasItem, itemMessage),
+    )
     .max(200)
     .optional(),
 });
 
 /** The person said a video of a day was not in the language: its time of that day does not count. */
-export const videoRemovedEventSchema = z.object({
-  id: eventId,
-  source: z.literal("deuchan"),
-  kind: z.literal("video_removed"),
-  // Deuchan sends it, like on every event; nothing depends on it here
-  language: language.optional(),
-  day: dayString,
-  at: epochMs,
-  videoId: youtubeVideoId,
-});
+export const videoRemovedEventSchema = z
+  .object({
+    id: eventId,
+    source: z.literal("deuchan"),
+    kind: z.literal("video_removed"),
+    // Deuchan sends it, like on every event; nothing depends on it here
+    language: language.optional(),
+    day: dayString,
+    at: epochMs,
+    videoId: youtubeVideoId.optional(),
+    itemId: itemId.optional(),
+  })
+  .refine(hasItem, itemMessage);
 
 export const ingestEventSchema = z.discriminatedUnion("kind", [
   watchIntervalEventSchema,
