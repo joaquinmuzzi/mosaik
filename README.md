@@ -160,7 +160,7 @@ Todas son opcionales:
 | `GET /api/export/backup` | Una copia completa de la base (SQLite), tomada sin parar el hub |
 | `GET /api/auth/status` | Modo y sesión: `{ mode, authenticated, setupNeeded, username }` |
 | `POST /api/auth/setup`, `/login`, `/logout` | Modo servidor: crear la cuenta (con `SETUP_TOKEN`), entrar y salir |
-| `GET`/`POST /api/devices`, `DELETE /api/devices/:name` | Modo servidor: computadoras que mandan datos y sus tokens |
+| `GET`/`POST /api/devices`, `PATCH`/`DELETE /api/devices/:name` | Modo servidor: computadoras que mandan datos, sus tokens y cómo se ven (`label`: el agente y Deuchan de una computadora pueden verse igual) |
 | `GET /api/agent/state?source=`, `POST /api/agent/batches`, `POST /api/agent/report` | Modo servidor, con token de dispositivo: lo que el agente necesita, sus lotes y las fuentes que no pudo leer |
 | `GET /api/contents` | Juegos y videos con su tiempo, sesiones y tarjetas |
 | `GET /api/contents/:id` | La ficha de un contenido |

@@ -5,7 +5,7 @@
    */
   import type { DeviceInfo } from "@mosaik/shared";
   import { onMount } from "svelte";
-  import { ApiError, createDevice, getDevices, revokeDevice } from "./api";
+  import { ApiError, createDevice, getDevices, revokeDevice, setDeviceLabel } from "./api";
 
   let devices = $state<DeviceInfo[]>([]);
   let name = $state("");
@@ -52,6 +52,26 @@
     await refresh();
   }
 
+  // The name stays (it is the key of the device's data); the label is how it is shown
+  async function relabel(device: DeviceInfo) {
+    const answer = prompt(
+      `¿Cómo querés que se vea «${device.name}»? Vacío para usar su nombre.`,
+      device.label ?? device.name,
+    );
+    if (answer === null) return;
+    const label = answer.trim();
+    error = null;
+    try {
+      await setDeviceLabel(device.name, label === "" || label === device.name ? null : label);
+      await refresh();
+    } catch (cause) {
+      error =
+        cause instanceof ApiError && cause.code === "invalid_label"
+          ? "Usá letras, números, espacios, puntos o guiones"
+          : "No se pudo cambiar cómo se ve";
+    }
+  }
+
   async function copy() {
     if (!created) return;
     await navigator.clipboard.writeText(created.token);
@@ -65,7 +85,8 @@
   <h2 id="devices-title">Dispositivos</h2>
   <p class="note">
     Cada computadora que manda datos (el agente que lee Anki y GSM, o Deuchan) usa su propio token. El nombre
-    es el que vas a ver en las fuentes, por ejemplo «notebook».
+    es el que vas a ver en las fuentes, por ejemplo «notebook». Con «Cambiar» elegís cómo se ve, sin tocar sus
+    datos; dos dispositivos de la misma computadora (el agente y Deuchan) pueden verse igual.
   </p>
 
   <form class="add" onsubmit={add}>
@@ -96,6 +117,7 @@
       <thead>
         <tr>
           <th scope="col">Nombre</th>
+          <th scope="col">Se ve como</th>
           <th scope="col">Creado</th>
           <th scope="col">Último envío</th>
           <th scope="col"><span class="visually-hidden">Acciones</span></th>
@@ -105,6 +127,10 @@
         {#each devices as device (device.name)}
           <tr class:revoked={device.revokedAt !== null}>
             <td>{device.name}</td>
+            <td>
+              {device.label ?? device.name}
+              <button type="button" class="quiet" onclick={() => relabel(device)}>Cambiar</button>
+            </td>
             <td class="meta">{when(device.createdAt)}</td>
             <td class="meta">{when(device.lastSeenAt)}</td>
             <td class="actions">

@@ -171,7 +171,7 @@ describe("dayDetail", () => {
     expect(dayDetail(db, OPTIONS, "2026-11-12").deuchan).toEqual({
       seconds: 600,
       readingSeconds: 0,
-      devices: [{ device: "principal", seconds: 600, at: 1 }],
+      devices: [{ device: "principal", label: "principal", seconds: 600, at: 1 }],
       snapshotAt: 1,
       videos: [
         {
@@ -194,6 +194,20 @@ describe("dayDetail", () => {
         },
       ],
     });
+  });
+});
+
+describe("device labels", () => {
+  it("shows each device by its label, and a label once for the devices that share it", () => {
+    db.prepare("INSERT INTO devices (name, token_hash, created_at, label) VALUES (?, ?, ?, ?)").run(
+      "principal",
+      "hash",
+      1,
+      "PC2",
+    );
+    const deuchan = dayDetail(db, OPTIONS, "2026-11-12").deuchan;
+    expect(deuchan.devices).toEqual([{ device: "principal", label: "PC2", seconds: 600, at: 1 }]);
+    expect(deuchan.videos.map((video) => video.devices)).toEqual([["PC2"], ["PC2"]]);
   });
 });
 

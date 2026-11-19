@@ -23,6 +23,15 @@
   });
 
   const total = $derived(data ? data.gsm.seconds + (data.deuchan.seconds ?? 0) : 0);
+  // Deuchan's total per computer as it is shown: devices that share a label add up
+  const byLabel = $derived(
+    Object.entries(
+      (data?.deuchan.devices ?? []).reduce<Record<string, number>>((sums, device) => {
+        sums[device.label] = (sums[device.label] ?? 0) + device.seconds;
+        return sums;
+      }, {}),
+    ),
+  );
   const pick = (event: Event) => {
     const value = (event.currentTarget as HTMLInputElement).value;
     if (value) location.hash = hrefDay(value);
@@ -110,8 +119,8 @@
       La suma de lo que mandó cada computadora y perfil de Chrome, con tus correcciones.
       {#if data.deuchan.readingSeconds > 0}De eso, {duration(data.deuchan.readingSeconds)} es lectura que contaste
         a mano.{/if}
-      {#if data.deuchan.devices.length > 1}({data.deuchan.devices
-          .map((device) => `${device.device}: ${duration(device.seconds)}`)
+      {#if byLabel.length > 1}({byLabel
+          .map(([label, seconds]) => `${label}: ${duration(seconds)}`)
           .join(" · ")}){/if}
       Deuchan cuenta los días de medianoche a medianoche.
       {#if data.deuchan.snapshotAt}Último dato: {timeOf(
