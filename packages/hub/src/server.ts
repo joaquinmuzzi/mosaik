@@ -29,7 +29,13 @@ import type {
   SourcesResponse,
   StatsResponse,
 } from "@mosaik/shared";
-import { DEFAULT_DEVICE, connectorBatchSchema, dayKey, deviceSchema } from "@mosaik/shared";
+import {
+  DEFAULT_DEVICE,
+  connectorBatchSchema,
+  dayKey,
+  deviceLabelSchema,
+  deviceSchema,
+} from "@mosaik/shared";
 import { AGENT_BODY_LIMIT, agentState, applyAgentBatch, reportAgentError } from "./api/agent.ts";
 import {
   LoginLimiter,
@@ -43,11 +49,13 @@ import {
   createSession,
   deleteSession,
   deviceForToken,
+  deviceLabels,
   getAccount,
   listDevices,
   readCookie,
   revokeDevice,
   sameSecret,
+  setDeviceLabel,
   verifyPassword,
 } from "./auth.ts";
 import { contentDetail, listContents, searchLines } from "./api/contents.ts";
@@ -335,6 +343,18 @@ export async function buildServer({
       return response;
     });
 
+    // How a device is shown ('PC1'); its name, the key of its data, stays
+    app.patch<{ Params: { name: string } }>("/api/devices/:name", async (request, reply) => {
+      const parsed = deviceLabelSchema.safeParse(((request.body ?? {}) as { label?: unknown }).label);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_label", message: parsed.error.issues[0]?.message });
+      }
+      if (!setDeviceLabel(db, request.params.name, parsed.data)) {
+        return reply.code(404).send({ error: "device_not_found" });
+      }
+      return { name: request.params.name, label: parsed.data };
+    });
+
     app.delete<{ Params: { name: string } }>("/api/devices/:name", async (request) => ({
       revoked: revokeDevice(db, request.params.name, Date.now()),
     }));
@@ -403,9 +423,11 @@ export async function buildServer({
   app.get("/api/sources", async (): Promise<SourcesResponse> => {
     const states = listConnectorStates(db);
     const own = (source: string, device: string) => device === DEFAULT_DEVICE && scheduler.has(source);
+    const labelOf = deviceLabels(db);
     const sources: SourceStatus[] = states.map((state) => ({
       source: state.source,
       device: state.device,
+      deviceLabel: labelOf(state.device),
       registered: own(state.source, state.device),
       running: own(state.source, state.device) && scheduler.isRunning(state.source),
       lastRunAt: state.lastRunAt,
@@ -418,6 +440,7 @@ export async function buildServer({
         sources.push({
           source,
           device: DEFAULT_DEVICE,
+          deviceLabel: labelOf(DEFAULT_DEVICE),
           registered: true,
           running: scheduler.isRunning(source),
           lastRunAt: null,

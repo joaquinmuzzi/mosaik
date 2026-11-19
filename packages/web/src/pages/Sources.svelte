@@ -122,7 +122,7 @@
             <td>
               <span class="source-name"
                 >{source.source}{#if isServer() || source.device !== "principal"}
-                  <span class="device">· {source.device}</span>{/if}</span
+                  <span class="device">· {source.deviceLabel}</span>{/if}</span
               >
               {#if summaryText(source.lastSummary)}
                 <span class="summary">{summaryText(source.lastSummary)}</span>

@@ -15,6 +15,8 @@ export interface SourceStatus {
   source: string;
   /** The computer this state is of: `principal` is the hub's own, others are agents (server mode). */
   device: string;
+  /** How the device is shown: its label, or its name. */
+  deviceLabel: string;
   /** Whether a connector for this source is registered in the running hub. */
   registered: boolean;
   running: boolean;
@@ -89,7 +91,7 @@ export interface DayVideo {
   contentKind: "video" | "reading";
   /** Seconds Deuchan credited to it that day, on all devices. */
   seconds: number;
-  /** The devices it was watched or read on, most seconds first. */
+  /** The devices it was watched or read on, most seconds first, as they are shown (labels). */
   devices: string[];
 }
 
@@ -113,7 +115,7 @@ export interface DayDetailResponse {
     /** The part of `seconds` counted by hand as reading. */
     readingSeconds: number;
     /** Each device's own total for the day. */
-    devices: { device: string; seconds: number; at: number }[];
+    devices: { device: string; label: string; seconds: number; at: number }[];
     /** The newest snapshot of any device. */
     snapshotAt: number | null;
     videos: DayVideo[];
@@ -309,7 +311,10 @@ export interface AuthStatusResponse {
 }
 
 export interface DeviceInfo {
+  /** The key of its data: it never changes. */
   name: string;
+  /** How it is shown ('PC1'), or null to show its name. Devices of one computer can share it. */
+  label: string | null;
   createdAt: number;
   lastSeenAt: number | null;
   revokedAt: number | null;

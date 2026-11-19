@@ -61,6 +61,10 @@ export const login = (username: string, password: string) =>
 export const logout = () => send<{ ok: true }>("POST", "/api/auth/logout");
 export const getDevices = () => request<DevicesResponse>("/api/devices");
 export const createDevice = (name: string) => send<CreateDeviceResponse>("POST", "/api/devices", { name });
+export const setDeviceLabel = (name: string, label: string | null) =>
+  send<{ name: string; label: string | null }>("PATCH", `/api/devices/${encodeURIComponent(name)}`, {
+    label,
+  });
 export const revokeDevice = (name: string) =>
   send<{ revoked: boolean }>("DELETE", `/api/devices/${encodeURIComponent(name)}`);
 

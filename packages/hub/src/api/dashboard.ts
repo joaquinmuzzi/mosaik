@@ -16,6 +16,7 @@ import type {
   WeekPoint,
 } from "@mosaik/shared";
 import { dayKey } from "@mosaik/shared";
+import { deviceLabels } from "../auth.ts";
 import type { Database } from "../db/database.ts";
 import { snapshotItemsByDay } from "../derive/deuchan.ts";
 import { COUNTED_REVIEW_TYPES } from "../metrics/reviews.ts";
@@ -191,6 +192,7 @@ export function dayDetail(db: Database, options: DashboardOptions, day: string):
        WHERE source = 'deuchan' AND day = ? ORDER BY seconds DESC, device`,
     )
     .all(day) as { device: string; seconds: number; reading_seconds: number; at: number }[];
+  const labelOf = deviceLabels(db);
   const videos: DayVideo[] = (snapshotItemsByDay(db, { from: day, to: day }).get(day) ?? []).map((item) => ({
     id: item.contentId,
     videoId: item.videoId,
@@ -198,7 +200,8 @@ export function dayDetail(db: Database, options: DashboardOptions, day: string):
     url: item.url,
     contentKind: item.contentKind,
     seconds: item.seconds,
-    devices: item.devices,
+    // Devices of one computer can share a label: each is shown once
+    devices: [...new Set(item.devices.map(labelOf))],
   }));
 
   // Anki
@@ -259,7 +262,12 @@ export function dayDetail(db: Database, options: DashboardOptions, day: string):
     deuchan: {
       seconds: deuchanDevices.length > 0 ? deuchanDevices.reduce((sum, row) => sum + row.seconds, 0) : null,
       readingSeconds: deuchanDevices.reduce((sum, row) => sum + row.reading_seconds, 0),
-      devices: deuchanDevices.map((row) => ({ device: row.device, seconds: row.seconds, at: row.at })),
+      devices: deuchanDevices.map((row) => ({
+        device: row.device,
+        label: labelOf(row.device),
+        seconds: row.seconds,
+        at: row.at,
+      })),
       snapshotAt: deuchanDevices.length > 0 ? Math.max(...deuchanDevices.map((row) => row.at)) : null,
       videos,
     },

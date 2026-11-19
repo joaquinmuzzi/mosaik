@@ -116,10 +116,17 @@ export function deleteSession(db: Database, token: string): void {
 export function listDevices(db: Database): DeviceInfo[] {
   return (
     db
-      .prepare("SELECT name, created_at, last_seen_at, revoked_at FROM devices ORDER BY created_at")
-      .all() as { name: string; created_at: number; last_seen_at: number | null; revoked_at: number | null }[]
+      .prepare("SELECT name, label, created_at, last_seen_at, revoked_at FROM devices ORDER BY created_at")
+      .all() as {
+      name: string;
+      label: string | null;
+      created_at: number;
+      last_seen_at: number | null;
+      revoked_at: number | null;
+    }[]
   ).map((row) => ({
     name: row.name,
+    label: row.label,
     createdAt: row.created_at,
     lastSeenAt: row.last_seen_at,
     revokedAt: row.revoked_at,
@@ -140,6 +147,27 @@ export function createDevice(db: Database, name: string, now: number): CreateDev
     now,
   );
   return { ok: true, token };
+}
+
+/** The name a device is shown with, or null to show its name. False if there is no such device. */
+export function setDeviceLabel(db: Database, name: string, label: string | null): boolean {
+  return db.prepare("UPDATE devices SET label = ? WHERE name = ?").run(label, name).changes > 0;
+}
+
+/**
+ * How each device is shown: its label, or its name when it has none (or no row, like the hub's own
+ * computer in local mode).
+ */
+export function deviceLabels(db: Database): (name: string) => string {
+  const labels = new Map(
+    (
+      db.prepare("SELECT name, label FROM devices WHERE label IS NOT NULL").all() as {
+        name: string;
+        label: string;
+      }[]
+    ).map((row) => [row.name, row.label]),
+  );
+  return (name) => labels.get(name) ?? name;
 }
 
 /** Revokes a device: its token stops working. Its data stays. */

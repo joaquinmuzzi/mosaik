@@ -213,7 +213,9 @@ describe("devices and agents", () => {
     const { server, cookie } = await withDevice();
     const list = await server.inject({ url: "/api/devices", headers: page(cookie) });
     expect(list.json()).toEqual({
-      devices: [{ name: "notebook", createdAt: expect.any(Number), lastSeenAt: null, revokedAt: null }],
+      devices: [
+        { name: "notebook", label: null, createdAt: expect.any(Number), lastSeenAt: null, revokedAt: null },
+      ],
     });
     const repeated = await server.inject({
       method: "POST",
@@ -298,6 +300,47 @@ describe("devices and agents", () => {
     expect(sources.sources).toEqual([
       expect.objectContaining({ source: "gsm", device: "notebook", registered: false, lastError: null }),
     ]);
+  });
+
+  it("shows a device by its label, keeping its name for its data", async () => {
+    const { server, cookie, agent } = await withDevice();
+    const relabel = (name: string, label: unknown) =>
+      server.inject({
+        method: "PATCH",
+        url: `/api/devices/${name}`,
+        headers: page(cookie),
+        payload: { label },
+      });
+    const labelled = await relabel("notebook", "PC1");
+    expect(labelled.json()).toEqual({ name: "notebook", label: "PC1" });
+    expect((await relabel("nowhere", "PC1")).statusCode).toBe(404);
+    expect((await relabel("notebook", "../etc")).statusCode).toBe(400);
+
+    const list = await server.inject({ url: "/api/devices", headers: page(cookie) });
+    expect(list.json().devices[0]).toMatchObject({ name: "notebook", label: "PC1" });
+    // The token still is the device, by its name
+    expect((await server.inject({ url: "/api/agent/whoami", headers: agent })).json()).toEqual({
+      device: "notebook",
+    });
+    await server.inject({
+      method: "POST",
+      url: "/api/agent/report",
+      headers: agent,
+      payload: { source: "gsm", error: "no gsm.db" },
+    });
+    const sources = (
+      await server.inject({ url: "/api/sources", headers: page(cookie) })
+    ).json<SourcesResponse>();
+    expect(sources.sources).toEqual([
+      expect.objectContaining({ source: "gsm", device: "notebook", deviceLabel: "PC1" }),
+    ]);
+
+    await relabel("notebook", null);
+    expect(
+      (await server.inject({ url: "/api/devices", headers: page(cookie) })).json().devices[0],
+    ).toMatchObject({
+      label: null,
+    });
   });
 
   it("says which device a token is", async () => {

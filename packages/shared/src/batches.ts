@@ -18,6 +18,9 @@ export const deviceSchema = z
   .max(64)
   .regex(/^[\p{L}\p{N}][\p{L}\p{N} ._-]*$/u, "letters, numbers, spaces, dots, dashes or underscores");
 
+/** How a device is shown: the same characters as a name, or null to show the name. */
+export const deviceLabelSchema = z.union([deviceSchema, z.null()]);
+
 // Anki, as AnkiConnect returns it
 
 export const noteInfoSchema = z.looseObject({
