@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { type Database, openDatabase } from "../src/db/database.ts";
 import { applyMigrations } from "../src/db/migrate.ts";
-import { normalizeTitle, youtubeVideoIdOf } from "../src/derive/deuchan.ts";
+import { itemTitle, normalizeTitle, youtubeVideoIdOf } from "../src/derive/deuchan.ts";
 import { ingestEvents } from "../src/ingest.ts";
 import { createScheduler } from "../src/scheduler.ts";
 import { buildServer } from "../src/server.ts";
@@ -260,6 +260,14 @@ describe("what the hub makes of Deuchan's events", () => {
 describe("title and URL helpers", () => {
   it("compare titles without case, spacing or the YouTube suffix", () => {
     expect(normalizeTitle("  Tagesschau   20:00 Uhr - YouTube")).toBe("tagesschau 20:00 uhr");
+  });
+
+  it("take the count of notifications off the title of a page, not of a YouTube video", () => {
+    expect(itemTitle({}, "(2) LumiiMari - Twitch")).toBe("LumiiMari - Twitch");
+    expect(itemTitle({}, "(99+) Facebook")).toBe("Facebook");
+    expect(itemTitle({}, "Teil (2) der Serie")).toBe("Teil (2) der Serie");
+    expect(itemTitle({ videoId: VIDEO }, "(2) Folge zwei")).toBe("(2) Folge zwei");
+    expect(itemTitle({}, undefined)).toBe("");
   });
 
   it("find the video id in the usual YouTube URLs", () => {
