@@ -217,12 +217,12 @@ describe("what the hub makes of Deuchan's events", () => {
     await setup();
     await send({ events: [interval(T, T + 60_000), interval(T, T + 60_000, { videoId: "otherVideo1" })] });
     const removal = {
-      id: `deuchan:rm:2026-11-14:${VIDEO}:${T + 5000}`,
+      id: `deuchan:rm:2026-11-14:${VIDEO}:${T + 65_000}`,
       source: "deuchan",
       kind: "video_removed",
       language: "de",
       day: "2026-11-14",
-      at: T + 5000,
+      at: T + 65_000,
       videoId: VIDEO,
     };
     expect((await send({ events: [removal] })).json<IngestResponse>()).toMatchObject({
@@ -230,6 +230,25 @@ describe("what the hub makes of Deuchan's events", () => {
       rejected: [],
     });
     expect(rows("SELECT content_id FROM sessions")).toEqual([{ content_id: "yt:otherVideo1" }]);
+  });
+
+  it("keeps what an item counted after it was removed from its day", async () => {
+    await setup();
+    const removal = {
+      id: `deuchan:rm:2026-11-14:${VIDEO}:${T + 60_000}`,
+      source: "deuchan",
+      kind: "video_removed",
+      language: "de",
+      day: "2026-11-14",
+      at: T + 60_000,
+      videoId: VIDEO,
+    };
+    // Before the removal, across it (half after it), and after it; sent in any order
+    await send({ events: [interval(T + 90_000, T + 150_000), removal] });
+    await send({ events: [interval(T, T + 30_000), interval(T + 30_000, T + 90_000)] });
+    expect(rows("SELECT start_ts, end_ts, seconds FROM sessions")).toEqual([
+      { start_ts: T + 60_000, end_ts: T + 150_000, seconds: 90 },
+    ]);
   });
 
   it("gives a card the video it was mined from, by URL or by title", async () => {

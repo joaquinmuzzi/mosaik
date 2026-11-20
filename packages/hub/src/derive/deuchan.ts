@@ -8,8 +8,9 @@
  * - An item is a YouTube video (`yt:<videoId>`) or anything else the source names (`web:<hash>`: a
  *   video on another site, a page read by hand).
  * - Intervals of the same item on the same device less than 10 minutes apart make one session.
- * - An item the person removed from a day loses its intervals of that day, on every device (Deuchan's
- *   day: the local calendar day in which the interval ended).
+ * - An item the person removed from a day loses its intervals of that day up to the removal, on every
+ *   device (Deuchan's day: the local calendar day in which the interval ended). What is counted after
+ *   the removal stays: a page on another site goes on counting, as it does in Deuchan.
  * - Per device and day, the newest `day_total` snapshot is what that device's dashboard shows,
  *   corrections included. The day is the sum of its devices. It is never derived from the intervals.
  */
@@ -55,19 +56,35 @@ export function loadDeuchanEvents(db: Database): StoredEvent[] {
   ).map((row) => ({ ...(JSON.parse(row.payload) as IngestEvent), device: row.device }));
 }
 
-/** The intervals that still count: those of items not removed from their day. */
+/**
+ * The intervals that still count: an item removed from a day loses what was counted of it that day up
+ * to its newest removal; an interval that goes past the removal keeps the part after it.
+ */
 export function countedIntervals<T extends IngestEvent>(
   events: T[],
   timeZone: string,
 ): (T & WatchIntervalEvent)[] {
-  const removed = new Set(
-    events
-      .filter((event): event is T & VideoRemovedEvent => event.kind === "video_removed")
-      .map((event) => `${event.day}|${deuchanContentId(event)}`),
-  );
-  return events
-    .filter((event): event is T & WatchIntervalEvent => event.kind === "watch_interval")
-    .filter((event) => !removed.has(`${dayKey(event.to, timeZone, 0)}|${deuchanContentId(event)}`));
+  const removedAt = new Map<string, number>();
+  for (const event of events) {
+    if (event.kind !== "video_removed") continue;
+    const removal = event as T & VideoRemovedEvent;
+    const key = `${removal.day}|${deuchanContentId(removal)}`;
+    removedAt.set(key, Math.max(removedAt.get(key) ?? 0, removal.at));
+  }
+  const counted: (T & WatchIntervalEvent)[] = [];
+  for (const event of events) {
+    if (event.kind !== "watch_interval") continue;
+    const interval = event as T & WatchIntervalEvent;
+    const at = removedAt.get(`${dayKey(interval.to, timeZone, 0)}|${deuchanContentId(interval)}`);
+    if (at === undefined || interval.from >= at) {
+      counted.push(interval);
+    } else if (interval.to > at) {
+      // Its seconds are spread over it: the share after the removal stays
+      const share = (interval.to - at) / (interval.to - interval.from);
+      counted.push({ ...interval, from: at, seconds: interval.seconds * share });
+    }
+  }
+  return counted;
 }
 
 interface ItemInfo {
