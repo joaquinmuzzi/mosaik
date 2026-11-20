@@ -110,7 +110,7 @@ export function rebuildDeuchan(db: Database, { timeZone }: DeuchanDeriveOptions)
       kind: item.contentKind ?? "video",
     };
     if (title && (!known.title || at >= known.titleAt)) {
-      known.title = title;
+      known.title = itemTitle(item, title);
       known.titleAt = at;
     }
     if (item.url) known.url = item.url;
@@ -272,7 +272,7 @@ export function snapshotItemsByDay(
         perDevice: new Map<string, number>(),
       };
       item.seconds += video.seconds;
-      item.title = item.title || video.title || null;
+      item.title = item.title || itemTitle(video, video.title) || null;
       item.url = item.url ?? video.url ?? (video.videoId ? youtubeUrl(video.videoId) : null);
       item.perDevice.set(row.device, (item.perDevice.get(row.device) ?? 0) + video.seconds);
       list.set(contentId, item);
@@ -315,6 +315,16 @@ export function deuchanTitlesByDay(db: Database, timeZone: string): Map<string, 
       for (const video of event.videos ?? []) add(event.day, video.title, deuchanContentId(video));
   }
   return byDay;
+}
+
+/**
+ * The title of an item as it is shown. A page on another site is named after its tab, and many sites
+ * (Twitch, Facebook) put the count of unread notifications in front of it, "(2) Twitch": that count
+ * goes. A YouTube video keeps its title as it is, which can start like that.
+ */
+export function itemTitle(item: { videoId?: string | undefined }, title: string | undefined): string {
+  if (!title) return "";
+  return item.videoId ? title : title.replace(/^\(\d+\+?\)\s+/, "");
 }
 
 /** Titles compared without case, spacing or a trailing " - YouTube". */
