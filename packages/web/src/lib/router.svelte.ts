@@ -1,14 +1,20 @@
 /**
- * A hash router: `#/`, `#/dia/2026-11-14`, `#/anki`, `#/contenido`, `#/contenido/<id>`,
+ * A hash router: `#/`, `#/dia/2026-11-14`, `#/anki`, `#/contenido`, `#/contenido?tipo=juegos`,
+ * `#/contenido/<id>`,
  * `#/buscar?q=…`, `#/estadisticas`, `#/fuentes`. Works from any static server.
  */
+
+/** What the library shows: everything, or one kind of content. */
+export type ContentFilter = "all" | "game" | "video";
+
+const FILTERS: Record<string, ContentFilter> = { juegos: "game", videos: "video" };
 
 export type Route =
   | { page: "home" }
   | { page: "day"; day: string }
   | { page: "anki" }
   | { page: "stats" }
-  | { page: "contents" }
+  | { page: "contents"; kind: ContentFilter }
   | { page: "content"; id: string }
   | { page: "search"; query: string }
   | { page: "sources" };
@@ -19,7 +25,9 @@ function parse(hash: string): Route {
   if (day) return { page: "day", day: day[1]! };
   const content = /^\/contenido\/(.+)$/.exec(path);
   if (content) return { page: "content", id: decodeURIComponent(content[1]!) };
-  if (path === "/contenido") return { page: "contents" };
+  if (path === "/contenido") {
+    return { page: "contents", kind: FILTERS[new URLSearchParams(search).get("tipo") ?? ""] ?? "all" };
+  }
   if (path === "/buscar") return { page: "search", query: new URLSearchParams(search).get("q") ?? "" };
   if (path === "/anki") return { page: "anki" };
   if (path === "/estadisticas") return { page: "stats" };
@@ -36,6 +44,4 @@ window.addEventListener("hashchange", () => {
   router.route = next;
 });
 
-export const hrefDay = (day: string) => `#/dia/${day}`;
-export const hrefContent = (id: string) => `#/contenido/${encodeURIComponent(id)}`;
-export const hrefSearch = (query: string) => `#/buscar?q=${encodeURIComponent(query)}`;
+export * from "./hrefs";

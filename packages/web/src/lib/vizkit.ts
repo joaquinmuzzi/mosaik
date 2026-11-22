@@ -1,13 +1,12 @@
 /**
- * Chart builders the designs share: a yearly heatmap, a donut, and an immersion chart that can be
- * bars or lines, per day or per week, per source or per title. Each design passes its own theme, so
- * colors come from its tokens and stay fixed per source.
+ * The immersion chart: bars or lines, per day or per week, per source or per title. Colors come from
+ * the theme's tokens and stay fixed per source.
  */
 import type { DaySummary } from "@mosaik/shared";
-import type { EChartsOption, Theme } from "./Chart.svelte";
-import { MONO, barSeries, baseOption, categoryAxis, valueAxis } from "./charts";
-import { type TitleSeries, immersion, mondayOf, perWeek, weekKeys } from "./data";
-import { dayShort, duration, minutes } from "./format";
+import type { Theme } from "./Chart.svelte";
+import { barSeries, baseOption, categoryAxis, valueAxis } from "./charts";
+import { type TitleSeries, mondayOf, perWeek, weekKeys } from "./data";
+import { dayShort, duration } from "./format";
 
 /** `#rrggbb` mixed with another: `weight` of the first (0-1). ECharts cannot read CSS color-mix(). */
 export function mixHex(first: string, second: string, weight: number): string {
@@ -27,125 +26,22 @@ export function mixHex(first: string, second: string, weight: number): string {
     .join("")}`;
 }
 
-/** One year of immersion as a calendar heatmap, one hue from the surface to the accent. */
-export function heatmapOption(
-  theme: Theme,
-  days: DaySummary[],
-  { color = theme.accent, cell = 13 }: { color?: string; cell?: number } = {},
-): EChartsOption {
-  const values = days.map((day) => [day.day, minutes(immersion(day))] as [string, number]);
-  const max = Math.max(30, ...values.map(([, value]) => value));
-  return {
-    animation: false,
-    tooltip: {
-      backgroundColor: theme.surface,
-      borderColor: theme.grid,
-      textStyle: { color: theme.text },
-      formatter: (item: { value: [string, number] }) =>
-        `<b>${dayShort(item.value[0])}</b><br>${item.value[1] > 0 ? duration(item.value[1] * 60) : "Sin inmersión"}`,
-    },
-    visualMap: {
-      show: false,
-      min: 0,
-      max,
-      // From a dim tessera to full ochre: the mosaic fills in as the days add up
-      inRange: { color: [mixHex(color, theme.surface, 0.28), color] },
-    },
-    calendar: {
-      range: [days[0]?.day ?? "", days.at(-1)?.day ?? ""],
-      top: 22,
-      left: 34,
-      right: 8,
-      bottom: 4,
-      cellSize: ["auto", cell],
-      splitLine: { show: false },
-      // Empty days stay visible as a faint cell, so the year reads as a grid
-      itemStyle: {
-        color: theme.heatEmpty,
-        borderColor: theme.surface,
-        borderWidth: 3,
-      },
-      yearLabel: { show: false },
-      monthLabel: {
-        color: theme.muted,
-        fontFamily: MONO,
-        fontSize: 11,
-        nameMap: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
-      },
-      dayLabel: {
-        color: theme.muted,
-        fontFamily: MONO,
-        fontSize: 11,
-        firstDay: 1,
-        nameMap: ["D", "L", "M", "M", "J", "V", "S"],
-      },
-    },
-    series: [
-      {
-        type: "heatmap",
-        coordinateSystem: "calendar",
-        data: values.map(([day, value]) => [day, value > 0 ? value : null]),
-        itemStyle: { borderRadius: 2, borderColor: theme.surface, borderWidth: 2 },
-      },
-    ],
-  };
-}
-
-export interface DonutItem {
-  name: string;
-  value: number;
-  color: string;
-}
-
-/** A donut with a gap between slices; the tooltip says the value with `format`. */
-export function donutOption(
-  theme: Theme,
-  items: DonutItem[],
-  format: (value: number) => string,
-  center?: string,
-): EChartsOption {
-  return {
-    animation: false,
-    tooltip: {
-      backgroundColor: theme.surface,
-      borderColor: theme.grid,
-      textStyle: { color: theme.text },
-      formatter: (item: { name: string; value: number; percent: number }) =>
-        `<b>${item.name}</b><br>${format(item.value)} · ${Math.round(item.percent)} %`,
-    },
-    title: center
-      ? {
-          text: center,
-          left: "center",
-          top: "center",
-          textStyle: { color: theme.text, fontSize: 18, fontWeight: 600 },
-        }
-      : undefined,
-    series: [
-      {
-        type: "pie",
-        radius: ["58%", "82%"],
-        avoidLabelOverlap: true,
-        label: { show: false },
-        itemStyle: { borderColor: theme.surface, borderWidth: 3, borderRadius: 4 },
-        data: items
-          .filter((item) => item.value > 0)
-          .map((item) => ({ name: item.name, value: item.value, itemStyle: { color: item.color } })),
-      },
-    ],
-  };
-}
-
 export type Mark = "bars" | "lines";
 export type Period = "day" | "week";
 export type Split = "source" | "title";
 
-/** Colors for titles: games take the GSM color family, videos the YouTube one, in steps. */
-function titleColor(theme: Theme, series: TitleSeries, index: number): string {
-  const base = series.kind === "video" ? theme.youtube : theme.gsm;
+/** Colors for titles: games take the GSM color family, the rest Deuchan's, in steps. */
+export function titleColor(
+  theme: Pick<Theme, "gsm" | "youtube" | "surface">,
+  series: Pick<TitleSeries, "kind">,
+  index: number,
+): string {
+  const base = series.kind === "game" ? theme.gsm : theme.youtube;
   const mix = [100, 70, 45, 85, 60][index % 5] ?? 100;
   return mixHex(base, theme.surface, mix / 100);
 }
+
+const shortTitle = (title: string) => (title.length > 38 ? `${title.slice(0, 36)}…` : title);
 
 /** Immersion over time, with the three switches. Minutes per day, or hours per week. */
 export function immersionOption(
@@ -167,7 +63,7 @@ export function immersionOption(
   const groups =
     options.split === "title" && options.titles
       ? options.titles.map((series, index) => ({
-          name: series.title.length > 38 ? `${series.title.slice(0, 36)}…` : series.title,
+          name: shortTitle(series.title),
           color: titleColor(theme, series, index),
           values: sum((day) => series.days.get(day) ?? 0),
         }))
@@ -207,6 +103,7 @@ export function immersionOption(
         options.mark === "bars"
           ? base.tooltip.axisPointer
           : { type: "line", lineStyle: { color: theme.muted } },
+      confine: true,
       valueFormatter: (value: number) =>
         options.period === "day" ? duration(value * 60) : duration(value * 3600),
     },

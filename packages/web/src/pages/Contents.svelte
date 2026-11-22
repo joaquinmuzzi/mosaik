@@ -5,11 +5,12 @@
   import Info from "../lib/Info.svelte";
   import { load } from "../lib/load.svelte";
   import { NOTES } from "../lib/notes";
-  import { hrefContent } from "../lib/router.svelte";
+  import { type ContentFilter, hrefContent, router } from "../lib/router.svelte";
   import Toggle from "../lib/Toggle.svelte";
 
   const contents = load(getContents);
-  let kind = $state<"all" | "game" | "video">("all");
+  // A link can open it on one kind (`#/contenido?tipo=juegos`); the switch changes it from there
+  let kind = $derived<ContentFilter>(router.route.page === "contents" ? router.route.kind : "all");
   const shown = $derived((contents.data?.contents ?? []).filter((c) => kind === "all" || c.kind === kind));
 </script>
 

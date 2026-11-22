@@ -106,7 +106,7 @@ export function stats(db: Database, options: DashboardOptions, now = Date.now())
     highlights: {
       mostTime: top((content) => content.seconds),
       mostSessions: top((content) => content.sessions),
-      mostCharacters: top((content) => content.characters),
+      mostWords: top((content) => content.words),
       mostMined: top((content) => content.cardsMined),
       biggestDay,
       longestStreak: longestRun(active.map((day) => day.day)),

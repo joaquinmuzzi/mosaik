@@ -143,11 +143,12 @@ describe("dayDetail", () => {
       sessions: [
         {
           id: "gsm:a",
+          contentId: "gsm:g",
           title: "Beispiel Spiel",
           start: local("2026-11-13", "23:00"),
           end: local("2026-11-14", "03:50"),
           seconds: 300,
-          characters: 20,
+          words: 2,
           lines: 2,
         },
       ],

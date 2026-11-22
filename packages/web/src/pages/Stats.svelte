@@ -28,6 +28,7 @@
       title: item.title,
       seconds: 0,
       sessions: 0,
+      words: null,
       characters: null,
       cardsMined: 0,
       firstDay: null,
@@ -46,9 +47,9 @@
             value: (v: number) => `${number.format(v)} sesiones`,
           },
           {
-            label: "Más caracteres",
-            item: highlights.mostCharacters,
-            value: (v: number) => `${number.format(v)} caracteres`,
+            label: "Más palabras",
+            item: highlights.mostWords,
+            value: (v: number) => `${number.format(v)} palabras`,
           },
           {
             label: "Más tarjetas minadas",

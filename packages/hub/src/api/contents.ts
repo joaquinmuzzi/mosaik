@@ -121,6 +121,17 @@ function summarize(
   }[]) {
     sessions.set(row.content_id, row);
   }
+  const words = new Map(
+    (
+      db
+        .prepare(
+          `SELECT l.content_id, SUM(word_count(l.text)) AS words
+           FROM lines l JOIN sessions s ON s.id = l.session_id
+           WHERE s.language = ? GROUP BY l.content_id`,
+        )
+        .all(options.targetLanguage) as { content_id: string; words: number }[]
+    ).map((row) => [row.content_id, row.words]),
+  );
 
   return rows.map((row) => {
     const own = sessions.get(row.id);
@@ -138,6 +149,7 @@ function summarize(
       // A video's time is Deuchan's: its sessions are part of it, not an addition
       seconds: row.source === "deuchan" ? (video?.seconds ?? own?.seconds ?? 0) : (own?.seconds ?? 0),
       sessions: own?.count ?? 0,
+      words: row.source === "gsm" ? (words.get(row.id) ?? 0) : null,
       characters: row.source === "gsm" ? (own?.chars ?? 0) : null,
       cardsMined: mined.get(row.id) ?? 0,
       firstDay: days[0] ?? null,
@@ -175,6 +187,9 @@ function minedWords(db: Database, noteIds: number[]): string[] {
 }
 
 const parseIds = (value: string | null) => (value ? (JSON.parse(value) as number[]) : []);
+
+/** The newest lines a content shows; the search has them all. */
+const DETAIL_LINES = 15;
 
 export function contentDetail(
   db: Database,
@@ -241,8 +256,8 @@ export function contentDetail(
 
   const lines: ContentLine[] = (
     db
-      .prepare("SELECT id, ts, text, note_ids FROM lines WHERE content_id = ? ORDER BY ts DESC LIMIT 200")
-      .all(id) as { id: string; ts: number; text: string; note_ids: string | null }[]
+      .prepare("SELECT id, ts, text, note_ids FROM lines WHERE content_id = ? ORDER BY ts DESC LIMIT ?")
+      .all(id, DETAIL_LINES) as { id: string; ts: number; text: string; note_ids: string | null }[]
   ).map((line) => ({
     id: line.id,
     ts: line.ts,
@@ -264,8 +279,7 @@ export function contentDetail(
       unit: row.unit,
     },
     // Rule 7: a speed only where it means something, a share only where the length is known
-    charactersPerHour:
-      row.source === "gsm" && hours > 0 ? Math.round((content.characters ?? 0) / hours) : null,
+    wordsPerHour: row.source === "gsm" && hours > 0 ? Math.round((content.words ?? 0) / hours) : null,
     completion:
       row.total_units && row.total_units > 0 && content.characters !== null
         ? Math.min(1, content.characters / row.total_units)

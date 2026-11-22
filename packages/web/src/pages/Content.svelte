@@ -37,7 +37,7 @@
     fetchContent(wanted);
   });
 
-  // Deuchan's items (videos and reading counted by hand) have no lines or characters
+  // Deuchan's items (videos and reading counted by hand) have no lines or words
   const isVideo = $derived(data?.content.source === "deuchan");
   const color = (theme: Theme) => (isVideo ? theme.youtube : theme.gsm);
 
@@ -107,17 +107,15 @@
         <span class="label">Sesiones</span><span class="value">{number.format(content.sessions)}</span>
       </div>
     {/if}
-    {#if content.characters !== null}
+    {#if content.words !== null}
       <div class="total">
-        <span class="label">Caracteres leídos</span><span class="value"
-          >{number.format(content.characters)}</span
-        >
+        <span class="label">Palabras leídas</span><span class="value">{number.format(content.words)}</span>
       </div>
     {/if}
-    {#if data.charactersPerHour !== null}
+    {#if data.wordsPerHour !== null}
       <div class="total">
-        <span class="label">Caracteres por hora</span><span class="value"
-          >{number.format(data.charactersPerHour)}</span
+        <span class="label">Palabras por hora</span><span class="value"
+          >{number.format(data.wordsPerHour)}</span
         >
       </div>
     {/if}
@@ -136,8 +134,8 @@
       Tiempo: lo que Deuchan le acreditó a este video cada día, sumando todos los dispositivos. Para un video
       no se muestra velocidad ni porcentaje: no aplican.
     {:else}
-      Tiempo de lectura calculado como GSM, en alemán. Los caracteres se cuentan como GSM: sin espacios ni
-      puntuación, así que la velocidad solo se compara con vos mismo.
+      Tiempo de lectura calculado como GSM, en alemán. Las palabras son las de las líneas que leíste en esas
+      sesiones.
       {#if data.completion === null}No hay porcentaje leído porque GSM no conoce el largo de este juego.{/if}
     {/if}
   </p>

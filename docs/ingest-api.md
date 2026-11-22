@@ -85,7 +85,7 @@ hueco entre ellos es menor a 10 minutos.
 | `id` | string | uno nuevo por foto, p. ej. `deuchan:day:<day>:<at>` (único también entre dispositivos) |
 | `source`, `kind` | `"deuchan"`, `"day_total"` | |
 | `language` | string | |
-| `day` | `YYYY-MM-DD` | el día **de la fuente** (Deuchan corta a medianoche; el hub, a las 4:00) |
+| `day` | `YYYY-MM-DD` | el día **de la fuente** (Deuchan corta a las 4:00, como el hub; las versiones viejas, a medianoche) |
 | `at` | int, ms | cuándo se sacó la foto |
 | `seconds` | number, 0 – 90000 | lo que se vio o leyó **en este dispositivo** ese día, con las correcciones del usuario |
 | `readingSeconds` | number, opcional | la parte de `seconds` que es lectura contada a mano |
@@ -105,6 +105,7 @@ total **nunca** se deriva de `videos` ni de los intervalos.
 | `id` | string | p. ej. `deuchan:rm:<day>:<videoId>:<at>` |
 | `source`, `kind` | `"deuchan"`, `"video_removed"` | |
 | `day` | `YYYY-MM-DD` | |
+| `dayStartHour` | int 0–23, opcional | la hora local a la que empiezan los días de la fuente (Deuchan: 4); sin él, medianoche |
 | `at` | int, ms | |
 | `videoId` o `itemId` | string | |
 

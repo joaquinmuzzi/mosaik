@@ -5,6 +5,7 @@
 import type { ContentSummary, DaySummary, OriginStats } from "@mosaik/shared";
 import { getContent, getDay } from "./api";
 import { duration } from "./format";
+import { hrefContent, hrefDay } from "./hrefs";
 
 export const immersion = (day: DaySummary) => day.gsmSeconds + (day.deuchanSeconds ?? 0);
 
@@ -16,6 +17,8 @@ export interface FeedItem {
   kind: "gsm" | "youtube" | "mined";
   title: string;
   detail: string;
+  /** What it opens: the content, or the day for mined cards. */
+  href: string;
 }
 
 /** What happened on the most recent active days, newest first. */
@@ -36,6 +39,7 @@ export async function loadFeed(days: DaySummary[], { maxDays = 6, maxItems = 10 
         kind: "gsm",
         title: session.title ?? "Juego",
         detail: `Leíste ${duration(session.seconds)}`,
+        href: session.contentId ? hrefContent(session.contentId) : hrefDay(detail.day),
       });
     }
     for (const video of detail.deuchan.videos) {
@@ -46,6 +50,7 @@ export async function loadFeed(days: DaySummary[], { maxDays = 6, maxItems = 10 
         kind: "youtube",
         title: video.title || video.url || video.id,
         detail: `${video.contentKind === "reading" ? "Leíste" : "Miraste"} ${duration(video.seconds)}`,
+        href: hrefContent(video.id),
       });
     }
     if (detail.anki.mined.length > 0) {
@@ -57,6 +62,7 @@ export async function loadFeed(days: DaySummary[], { maxDays = 6, maxItems = 10 
         kind: "mined",
         title: `${words.length} ${words.length === 1 ? "tarjeta minada" : "tarjetas minadas"}`,
         detail: words.slice(0, 6).join(", ") + (words.length > 6 ? "…" : ""),
+        href: hrefDay(detail.day),
       });
     }
   }

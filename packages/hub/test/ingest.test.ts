@@ -251,6 +251,28 @@ describe("what the hub makes of Deuchan's events", () => {
     ]);
   });
 
+  it("takes the day of a removal from the hour Deuchan's days start at", async () => {
+    await setup();
+    // 01:00 of the 15th in Buenos Aires: the 14th for a Deuchan whose days start at 4:00
+    const night = Date.parse("2026-11-15T01:00:00-03:00");
+    const removal = (day: string, dayStartHour?: number) => ({
+      id: `deuchan:rm:${day}:${VIDEO}:${night + 120_000}:${dayStartHour}`,
+      source: "deuchan",
+      kind: "video_removed",
+      language: "de",
+      day,
+      ...(dayStartHour === undefined ? {} : { dayStartHour }),
+      at: night + 120_000,
+      videoId: VIDEO,
+    });
+    await send({
+      events: [interval(night, night + 60_000), removal("2026-11-15", 4), removal("2026-11-14")],
+    });
+    expect(rows("SELECT seconds FROM sessions")).toHaveLength(1);
+    await send({ events: [removal("2026-11-14", 4)] });
+    expect(rows("SELECT seconds FROM sessions")).toHaveLength(0);
+  });
+
   it("gives a card the video it was mined from, by URL or by title", async () => {
     await setup();
     const note = (noteId: number, fields: Record<string, string>) =>

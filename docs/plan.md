@@ -246,7 +246,7 @@ cruza el corte reparte su tiempo entre los dos días sin estimar nada. Solo se r
 La fase 3 creó `raw_events` (cada evento empujado, tal cual) y `day_totals` (por fuente y día, la foto más
 nueva) (`0004_ingest.sql`). Los videos de Deuchan son `contents` `yt:<videoId>` y sus sesiones juntan los
 intervalos del mismo video separados por menos de 10 minutos. El tiempo diario de Deuchan es el de
-`day_totals` (con correcciones, del día de Deuchan, que corta a medianoche); las sesiones dan el detalle.
+`day_totals` (con correcciones, del día de Deuchan, que corta a las 4:00 como el hub; hasta noviembre de 2026 cortaba a medianoche); las sesiones dan el detalle.
 
 Reglas de atribución del origen de una tarjeta, en orden (todas implementadas):
 1. Su `note_id` aparece en `note_ids` de una línea de GSM → `gsm`, con `content_id` y `line_id`.
@@ -360,7 +360,8 @@ Cada fase termina con tests en verde y sus criterios cumplidos.
   origen; inmersión por semana y tarjetas que llegaron a maduras, en gráficos separados) y Fuentes. Decisiones:
   - solo cuentan como inmersión las sesiones en el idioma objetivo (`TARGET_LANGUAGE`, `de`): la prueba en japonés
     de GSM del 2026-08-26 no suma;
-  - el tiempo de Deuchan se muestra con el día de Deuchan (medianoche) sin recortar, para que coincida con su
+  - el tiempo de Deuchan se muestra con el día de Deuchan (al principio, de medianoche a medianoche; después, de
+    4:00 a 4:00) sin recortar, para que coincida con su
     dashboard; GSM y Anki usan el día de Mosaik (corte 4:00). La página del día lo explica, y las horas de
     madrugada dicen de qué día calendario son;
   - "maduras" = intervalo de 21 días o más; "llegaron a maduras" = primera vez que un repaso dejó la tarjeta en 21+;

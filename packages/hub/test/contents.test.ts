@@ -82,7 +82,7 @@ beforeEach(() => {
 afterEach(() => db.close());
 
 describe("listContents", () => {
-  it("gives each content its time, sessions, characters and cards, newest first", () => {
+  it("gives each content its time, sessions, words and cards, newest first", () => {
     expect(listContents(db, OPTIONS).contents).toEqual([
       {
         id: "gsm:g",
@@ -91,6 +91,8 @@ describe("listContents", () => {
         title: "Beispiel Spiel",
         seconds: 1800,
         sessions: 1,
+        // "Ich erhebe Einwand", "Zum Glück bin ich pünktlich", "Er sagte Nein"
+        words: 11,
         characters: 40,
         cardsMined: 1,
         firstDay: "2026-11-13",
@@ -106,6 +108,7 @@ describe("listContents", () => {
         // The newest snapshot of each day: 300 + 60
         seconds: 360,
         sessions: 0,
+        words: null,
         characters: null,
         cardsMined: 1,
         firstDay: "2026-11-11",
@@ -122,7 +125,8 @@ describe("contentDetail", () => {
   it("shows a game: speed and share read, days, sessions, cards with their sentence, and lines", () => {
     const detail = contentDetail(db, OPTIONS, "gsm:g")!;
     expect(detail.content).toMatchObject({ title: "Beispiel Spiel", url: null, totalUnits: 100 });
-    expect(detail.charactersPerHour).toBe(80);
+    // 11 words in half an hour; the share read is in characters, as GSM measures the game
+    expect(detail.wordsPerHour).toBe(22);
     expect(detail.completion).toBe(0.4);
     expect(detail.days).toEqual([{ day: "2026-11-13", seconds: 1800 }]);
     expect(detail.sessions).toHaveLength(1);
@@ -141,10 +145,22 @@ describe("contentDetail", () => {
     ]);
   });
 
+  it("shows the newest 15 lines", () => {
+    const insert = db.prepare(
+      `INSERT INTO lines (id, source, content_id, session_id, ts, text, chars, seconds)
+       VALUES (?, 'gsm', 'gsm:g', 'gsm:s1', ?, 'Noch ein Satz.', 10, 0)`,
+    );
+    for (let index = 0; index < 20; index += 1)
+      insert.run(`gsm:more${index}`, local("2026-11-13", "20:31") + index);
+    const { lines } = contentDetail(db, OPTIONS, "gsm:g")!;
+    expect(lines).toHaveLength(15);
+    expect(lines[0]!.id).toBe("gsm:more19");
+  });
+
   it("shows a video without a speed or a share, which would mean nothing", () => {
     const detail = contentDetail(db, OPTIONS, "yt:aaaaaaaaaaa")!;
     expect(detail.content.url).toBe("https://www.youtube.com/watch?v=aaaaaaaaaaa");
-    expect(detail.charactersPerHour).toBeNull();
+    expect(detail.wordsPerHour).toBeNull();
     expect(detail.completion).toBeNull();
     expect(detail.days).toEqual([
       { day: "2026-11-11", seconds: 300 },

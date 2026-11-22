@@ -5,7 +5,7 @@
 
 export const NOTES = {
   day: (cutoff: number) =>
-    `Los días de Mosaik van de las ${cutoff}:00 a las ${cutoff}:00, como en Anki. El tiempo de Deuchan (videos y lectura que contaste a mano) cuenta de medianoche a medianoche.`,
+    `Los días de Mosaik van de las ${cutoff}:00 a las ${cutoff}:00, como en Anki y en Deuchan. Los días de Deuchan de antes de ese cambio quedaron contados de medianoche a medianoche.`,
   immersion:
     "Inmersión = tiempo de lectura en GameSentenceMiner (solo sesiones en alemán) + tiempo de video y de lectura que contó Deuchan.",
   gsmTime:
@@ -24,8 +24,7 @@ export const NOTES = {
     `Retención: de las respuestas a tarjetas en repaso, cuántas no fueron «Otra vez». Jóvenes: intervalo previo menor a 21 días; maduras: 21 o más. Con menos de ${few} respuestas el porcentaje aparece atenuado: todavía no dice mucho.`,
   mature: "Maduras: tarjetas con un intervalo de 21 días o más.",
   matured: "Acumulado por semana: cada tarjeta cuenta la primera vez que su intervalo llegó a 21 días.",
-  speed:
-    "Caracteres por hora, contados como GSM: sin espacios ni puntuación. Sirve para compararte con vos mismo.",
+  speed: "Palabras por hora de lectura. Sirve para compararte con vos mismo.",
   milestones:
     "Los hitos (10, 25, 50, 100, 250, 500, 1000 y 1500 horas) son marcas para ver el avance; no son parte del método.",
   year: "Suma de los últimos 365 días.",

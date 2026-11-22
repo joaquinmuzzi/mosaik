@@ -29,6 +29,9 @@
   --series-unknown: #85858b;
   --series-anki: #3987e5;
   --heat-empty: #222225;
+  /* The activity calendar, as in Anki: from a dim blue to a light one */
+  --heat-low: #16314d;
+  --heat-high: #6db5f7;
   --toggle-radius: 8px;
   --radius-card: 12px;
   --radius-control: 8px;

@@ -70,7 +70,8 @@
     {
       href: "/api/export/contents.csv",
       label: "Biblioteca (CSV)",
-      detail: "Cada juego y video con su tiempo, sesiones, caracteres, tarjetas y primer y último día.",
+      detail:
+        "Cada juego y video con su tiempo, sesiones, palabras, caracteres, tarjetas y primer y último día.",
     },
     {
       href: "/api/export/cards.csv",

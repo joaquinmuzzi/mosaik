@@ -1,28 +1,16 @@
 <script lang="ts" module>
-  import { BarChart, HeatmapChart, LineChart, PieChart, ScatterChart } from "echarts/charts";
-  import {
-    CalendarComponent,
-    GridComponent,
-    LegendComponent,
-    TitleComponent,
-    TooltipComponent,
-    VisualMapComponent,
-  } from "echarts/components";
+  import { BarChart, LineChart, ScatterChart } from "echarts/charts";
+  import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
   import * as echarts from "echarts/core";
   import { SVGRenderer } from "echarts/renderers";
 
   echarts.use([
     BarChart,
     LineChart,
-    PieChart,
     ScatterChart,
-    HeatmapChart,
-    CalendarComponent,
     GridComponent,
     LegendComponent,
-    TitleComponent,
     TooltipComponent,
-    VisualMapComponent,
     SVGRenderer,
   ]);
 
@@ -39,8 +27,6 @@
     muted: string;
     grid: string;
     surface: string;
-    /** Heatmap cells without activity. */
-    heatEmpty: string;
   }
 
   export function readTheme(): Theme {
@@ -58,7 +44,6 @@
       muted: token("--muted"),
       grid: token("--grid"),
       surface: token("--surface"),
-      heatEmpty: token("--heat-empty") || token("--grid"),
     };
   }
 
@@ -71,7 +56,7 @@
   interface Props {
     /** Builds the chart for the current theme. */
     option: (theme: Theme) => EChartsOption;
-    /** Called with the category index of a clicked mark. */
+    /** Called with the index of the category clicked: anywhere in its column, not only on a mark. */
     onselect?: (index: number) => void;
     height?: number;
     label: string;
@@ -87,8 +72,16 @@
 
   onMount(() => {
     chart = echarts.init(element, null, { renderer: "svg" });
-    chart.on("click", (event) => {
-      if (typeof event.dataIndex === "number") onselect?.(event.dataIndex);
+    const zr = chart.getZr();
+    const inside = (event: { offsetX: number; offsetY: number }) =>
+      onselect !== undefined && chart!.containPixel("grid", [event.offsetX, event.offsetY]);
+    zr.on("click", (event) => {
+      if (!inside(event)) return;
+      const index = chart!.convertFromPixel({ xAxisIndex: 0 }, event.offsetX);
+      if (Number.isInteger(index) && index >= 0) onselect?.(index);
+    });
+    zr.on("mousemove", (event) => {
+      if (inside(event)) zr.setCursorStyle("pointer");
     });
     render();
     const resize = new ResizeObserver(() => chart?.resize());
