@@ -44,7 +44,7 @@ export interface ApiError {
 
 /**
  * One day. GSM and Anki use Mosaik's day (the user's time zone, starting at the cutoff hour);
- * Deuchan's total uses Deuchan's own day, which starts at midnight.
+ * Deuchan's total uses Deuchan's own day, which also starts at 4:00.
  */
 export interface DaySummary {
   day: string;
@@ -72,11 +72,12 @@ export interface OverviewResponse {
 
 export interface DayGsmSession {
   id: string;
+  contentId: string | null;
   title: string | null;
   start: number;
   end: number;
   seconds: number;
-  characters: number | null;
+  words: number;
   lines: number | null;
 }
 
@@ -170,7 +171,9 @@ export interface ContentSummary {
   /** Active time: GSM's reading time in the target language, or what Deuchan credited the video. */
   seconds: number;
   sessions: number;
-  /** Characters read, as GSM counts them (GSM only). */
+  /** Words read in the target language (GSM only). */
+  words: number | null;
+  /** Characters read, as GSM counts them (GSM only); the share read is measured in them. */
   characters: number | null;
   cardsMined: number;
   firstDay: string | null;
@@ -231,14 +234,14 @@ export interface ContentDetailResponse {
     totalUnits: number | null;
     unit: string | null;
   };
-  /** Characters per hour, only for reading (GSM), as GSM counts characters. */
-  charactersPerHour: number | null;
+  /** Words per hour, only for reading (GSM). */
+  wordsPerHour: number | null;
   /** Share of the content read, only when the source knows its length. */
   completion: number | null;
   days: { day: string; seconds: number }[];
   sessions: ContentSession[];
   cards: ContentCard[];
-  /** The newest lines read (up to 200). */
+  /** The newest lines read (up to 15). */
   lines: ContentLine[];
 }
 
@@ -280,8 +283,8 @@ export interface StreakRecord {
 export interface Highlights {
   mostTime: HighlightContent | null;
   mostSessions: HighlightContent | null;
-  /** GSM only: Deuchan does not count characters. */
-  mostCharacters: HighlightContent | null;
+  /** GSM only: Deuchan does not count words. */
+  mostWords: HighlightContent | null;
   mostMined: HighlightContent | null;
   /** The day with most immersion (GSM + Deuchan). */
   biggestDay: { day: string; seconds: number } | null;

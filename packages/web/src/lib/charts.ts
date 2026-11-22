@@ -13,7 +13,7 @@ export function baseOption(theme: Theme, extra: { legend: boolean }) {
   return {
     animation: false,
     textStyle: { fontFamily: FONT, color: theme.muted },
-    grid: { left: 8, right: 12, top: extra.legend ? 36 : 12, bottom: 8, containLabel: true },
+    grid: { left: 8, right: 12, top: extra.legend ? 36 : 28, bottom: 8, containLabel: true },
     legend: extra.legend
       ? {
           top: 0,

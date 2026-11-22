@@ -93,7 +93,7 @@ export const watchIntervalEventSchema = z
  * device that sends it: for each device and day the hub keeps the snapshot with the newest `at`, and a
  * day is the sum of its devices. Give every snapshot its own `id` (for example
  * `deuchan:day:<day>:<at>`).
- * `day` is the source's own calendar day, which may not start at the hub's cutoff hour.
+ * `day` is the source's own day, which may not start at the hub's cutoff hour.
  */
 export const dayTotalEventSchema = z.object({
   id: eventId,
@@ -125,6 +125,8 @@ export const videoRemovedEventSchema = z
     // Deuchan sends it, like on every event; nothing depends on it here
     language: language.optional(),
     day: dayString,
+    /** The local hour the source's days start at; midnight when it does not say. */
+    dayStartHour: z.number().int().min(0).max(23).optional(),
     at: epochMs,
     videoId: youtubeVideoId.optional(),
     itemId: itemId.optional(),

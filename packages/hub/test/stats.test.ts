@@ -130,7 +130,7 @@ describe("stats", () => {
       value: 2100,
     });
     expect(highlights.mostSessions).toMatchObject({ id: "gsm:g", value: 3 });
-    expect(highlights.mostCharacters).toMatchObject({ id: "gsm:g", value: 150 });
+    expect(highlights.mostWords).toMatchObject({ id: "gsm:g", value: 3 });
     // The Refold card has no content, so the game leads with its two
     expect(highlights.mostMined).toMatchObject({ id: "gsm:g", value: 2 });
     expect(highlights.biggestDay).toEqual({ day: "2026-11-12", seconds: 2300 });
@@ -182,7 +182,7 @@ describe("CSV export", () => {
   it("writes the contents and the cards", () => {
     const contents = contentsCsv(db!, OPTIONS);
     expect(contents).toContain(
-      `yt:aaaaaaaaaaa,deuchan,video,"'=Formel, ""zitiert""",2100,0,,0,2026-11-12,2026-11-13`,
+      `yt:aaaaaaaaaaa,deuchan,video,"'=Formel, ""zitiert""",2100,0,,,0,2026-11-12,2026-11-13`,
     );
     const cards = cardsCsv(db!, OPTIONS);
     expect(cards).toContain("1,Glück,gsm,Mining,gsm:g,Beispiel Spiel,,2026-11-11");

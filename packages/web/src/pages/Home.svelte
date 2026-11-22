@@ -1,17 +1,28 @@
 <script lang="ts">
   import type { DaySummary } from "@mosaik/shared";
-  import { getContents, getOverview } from "../lib/api";
-  import Chart, { type Theme } from "../lib/Chart.svelte";
-  import { type FeedItem, type TitleSeries, immersion, loadFeed, loadTitleSeries } from "../lib/data";
+  import { getContents, getOverview, getStats } from "../lib/api";
+  import ActivityCalendar from "../lib/ActivityCalendar.svelte";
+  import Chart, { type Theme, readTheme } from "../lib/Chart.svelte";
+  import {
+    type FeedItem,
+    type TitleSeries,
+    immersion,
+    loadFeed,
+    loadTitleSeries,
+    mondayOf,
+    weekKeys,
+  } from "../lib/data";
   import { dayLong, dayShort, duration, number, percent } from "../lib/format";
   import Info from "../lib/Info.svelte";
   import { load } from "../lib/load.svelte";
   import { NOTES } from "../lib/notes";
-  import { hrefDay } from "../lib/router.svelte";
+  import { hrefContent, hrefContents, hrefDay } from "../lib/router.svelte";
   import Toggle from "../lib/Toggle.svelte";
-  import { type Mark, type Period, type Split, heatmapOption, immersionOption } from "../lib/vizkit";
+  import { type Mark, type Period, type Split, immersionOption, titleColor } from "../lib/vizkit";
 
   const year = load(() => getOverview(365));
+  // The whole history, for the calendar; until it is here, the last year
+  const stats = load(getStats);
   let feed = $state<FeedItem[] | null>(null);
   let titles = $state<TitleSeries[] | null>(null);
 
@@ -33,9 +44,9 @@
   const today = $derived(days.at(-1));
   const last = (n: number, from = 0) => days.slice(days.length - n - from, days.length - from);
   const total = (list: DaySummary[]) => list.reduce((sum, day) => sum + immersion(day), 0);
-  const week = $derived(total(last(7)));
+  const weekTotal = $derived(total(last(7)));
   const previousWeek = $derived(total(last(7, 7)));
-  const weekChange = $derived(week - previousWeek);
+  const weekChange = $derived(weekTotal - previousWeek);
   const yearTotal = $derived(total(days));
   const month = $derived(last(30));
   const monthGsm = $derived(month.reduce((sum, day) => sum + day.gsmSeconds, 0));
@@ -45,11 +56,74 @@
   const monthMined = $derived(month.reduce((sum, day) => sum + day.cardsMined, 0));
   const share = (value: number) => (monthTotal > 0 ? value / monthTotal : 0);
 
-  const heat = $derived((theme: Theme) => heatmapOption(theme, days, { cell: 16 }));
-  const chartDays = $derived(period === "day" ? last(30) : last(16 * 7));
-  const main = $derived((theme: Theme) =>
-    immersionOption(theme, chartDays, { mark, period, split, titles: titles ?? [] }),
+  const calendarDays = $derived(
+    (stats.data?.days.length ? stats.data.days : days).map((day) => ({
+      day: day.day,
+      seconds: immersion(day),
+    })),
   );
+
+  // A click on a week shows its days; a click on a day opens it
+  let week = $state<string | null>(null);
+  const chartDays = $derived(
+    period === "week" && week
+      ? days.filter((day) => mondayOf(day.day) === week)
+      : period === "day"
+        ? last(30)
+        : last(16 * 7),
+  );
+  const shownPeriod = $derived<Period>(week ? "day" : period);
+  const chartWeeks = $derived(weekKeys(chartDays.map((day) => day.day)));
+  function openPeriod(index: number) {
+    if (shownPeriod === "week") {
+      week = chartWeeks[index] ?? null;
+      return;
+    }
+    const day = chartDays[index];
+    if (day) location.hash = hrefDay(day.day);
+  }
+  $effect(() => {
+    if (period === "day") week = null;
+  });
+  const main = $derived((theme: Theme) =>
+    immersionOption(theme, chartDays, {
+      mark,
+      period: shownPeriod,
+      split,
+      titles: titles ?? [],
+      legend: false,
+    }),
+  );
+  // The legend is a list of links under the chart: long titles do not fit inside it
+  const legend = $derived.by(() => {
+    const keys = chartDays.map((day) => day.day);
+    if (split === "title") {
+      const theme = readTheme();
+      return (titles ?? []).map((series, index) => ({
+        key: series.id,
+        name: series.title,
+        color: titleColor(theme, series, index),
+        seconds: keys.reduce((sum, key) => sum + (series.days.get(key) ?? 0), 0),
+        href: hrefContent(series.id),
+      }));
+    }
+    return [
+      {
+        key: "gsm",
+        name: "Juegos (GSM)",
+        color: "var(--series-gsm)",
+        seconds: chartDays.reduce((sum, day) => sum + day.gsmSeconds, 0),
+        href: hrefContents("juegos"),
+      },
+      {
+        key: "deuchan",
+        name: "Deuchan",
+        color: "var(--series-youtube)",
+        seconds: chartDays.reduce((sum, day) => sum + (day.deuchanSeconds ?? 0), 0),
+        href: hrefContents("videos"),
+      },
+    ];
+  });
 
   const kindColor = {
     gsm: "var(--series-gsm)",
@@ -82,7 +156,7 @@
     </a>
     <div class="k-stat">
       <span class="k-label">Últimos 7 días</span>
-      <span class="k-value figure">{duration(week)}</span>
+      <span class="k-value figure">{duration(weekTotal)}</span>
       <span class="k-sub" class:up={weekChange > 0}>
         {weekChange === 0 ? "igual" : `${weekChange > 0 ? "+" : "−"}${duration(Math.abs(weekChange))}`} vs los 7
         anteriores
@@ -104,16 +178,25 @@
 
   <section class="card k-heat">
     <div class="k-card-head">
-      <h2>Último año</h2>
+      <h2>Actividad</h2>
       <span class="meta">{duration(yearTotal)} en 365 días <Info text={NOTES.year} /></span>
     </div>
-    <Chart option={heat} height={180} label="Mapa de calor de la inmersión diaria del último año" />
+    <ActivityCalendar days={calendarDays} />
   </section>
 
   <div class="k-row">
     <section class="card">
       <div class="k-card-head">
-        <h2>Inmersión</h2>
+        <h2>
+          Inmersión
+          {#if week}
+            <button type="button" class="k-week" onclick={() => (week = null)}
+              >Semana del {dayShort(week)} <span aria-hidden="true">×</span><span class="visually-hidden"
+                >Volver a las semanas</span
+              ></button
+            >
+          {/if}
+        </h2>
         <div class="k-switches">
           <Toggle
             label="Tipo de gráfico"
@@ -142,8 +225,19 @@
         </div>
       </div>
       {#key `${split}-${titles ? 1 : 0}`}
-        <Chart option={main} height={300} label="Inmersión por período" />
+        <Chart option={main} onselect={openPeriod} height={280} label="Inmersión por período" />
       {/key}
+      <ul class="k-legend" class:titles={split === "title"}>
+        {#each legend as item (item.key)}
+          <li>
+            <a href={item.href} title={item.name}>
+              <span class="tile" style:background={item.color} aria-hidden="true"></span>
+              <span class="k-legend-name">{item.name}</span>
+              <span class="figure k-legend-time">{duration(item.seconds)}</span>
+            </a>
+          </li>
+        {/each}
+      </ul>
     </section>
 
     <section class="card">
@@ -201,12 +295,16 @@
       <ul class="k-feed">
         {#each feed as item (item.key)}
           <li>
-            <span class="tile" style:background={kindColor[item.kind]} aria-hidden="true"></span>
-            <span class="k-feed-text">
-              <span class="k-feed-title">{item.title}</span>
-              <span class="k-feed-detail">{item.detail}</span>
-            </span>
-            <a class="meta k-feed-day" href={hrefDay(item.day)}>{dayShort(item.day)}</a>
+            <a class="k-feed-line" href={item.href}>
+              <span class="tile" style:background={kindColor[item.kind]} aria-hidden="true"></span>
+              <span class="k-feed-text">
+                <span class="k-feed-title">{item.title}</span>
+                <span class="k-feed-detail">{item.detail}</span>
+              </span>
+            </a>
+            <a class="meta k-feed-day" href={hrefDay(item.day)} aria-label={`Ver el ${dayShort(item.day)}`}
+              >{dayShort(item.day)}</a
+            >
           </li>
         {/each}
       </ul>
@@ -370,12 +468,91 @@
     padding: 0;
   }
 
+  .k-week {
+    margin-left: 8px;
+    padding: 2px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-control);
+    background: var(--surface-2);
+    color: var(--secondary);
+    font: inherit;
+    font-size: 0.8571rem;
+    cursor: pointer;
+  }
+
+  .k-week:hover {
+    color: var(--text);
+  }
+
+  .k-legend {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 8px;
+  }
+
+  .k-legend.titles {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .k-legend a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    padding: 0 8px;
+    border-radius: var(--radius-control);
+    color: var(--text);
+    text-decoration: none;
+    transition: background-color 150ms var(--ease);
+  }
+
+  .k-legend a:hover {
+    background: var(--surface-2);
+  }
+
+  .k-legend-name {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .k-legend.titles .k-legend-name {
+    flex: 1;
+  }
+
+  .k-legend-time {
+    flex: none;
+    color: var(--muted);
+  }
+
   .k-feed li {
+    display: flex;
+    align-items: stretch;
+    min-height: 40px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .k-feed-line {
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 12px;
-    min-height: 40px;
-    border-bottom: 1px solid var(--border);
+    padding: 0 8px;
+    margin-left: -8px;
+    border-radius: var(--radius-control);
+    color: var(--text);
+    text-decoration: none;
+    transition: background-color 150ms var(--ease);
+  }
+
+  .k-feed-line:hover {
+    background: var(--surface-2);
   }
 
   .k-feed li:last-child {
@@ -403,6 +580,9 @@
 
   .k-feed-day {
     flex: none;
+    display: flex;
+    align-items: center;
+    padding-left: 12px;
     text-decoration: none;
   }
 

@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { countWords } from "../words.ts";
 
 export type Database = DatabaseSync;
 
@@ -15,6 +16,10 @@ export function openDatabase(path: string): Database {
   db.exec("PRAGMA synchronous = NORMAL");
   db.exec("PRAGMA foreign_keys = ON");
   db.exec("PRAGMA busy_timeout = 5000");
+  // `word_count(text)`, for the queries that add up the words read
+  db.function("word_count", { deterministic: true }, (text) =>
+    typeof text === "string" ? countWords(text) : 0,
+  );
   return db;
 }
 

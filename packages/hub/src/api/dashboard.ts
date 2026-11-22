@@ -2,7 +2,7 @@
  * What the dashboard reads: a summary per day, the detail of one day, and Anki by card origin.
  *
  * Days: GSM reading time and Anki use Mosaik's day (the user's time zone, starting at the cutoff
- * hour). Deuchan's total is the one Deuchan shows, for Deuchan's own day (midnight to midnight): it
+ * hour). Deuchan's total is the one Deuchan shows, for Deuchan's own day (which also starts at 4:00): it
  * is not cut again, so it always matches what Deuchan's dashboard says.
  */
 import type {
@@ -151,16 +151,17 @@ export function dayDetail(db: Database, options: DashboardOptions, day: string):
   let otherLanguageSeconds = 0;
   for (const row of db
     .prepare(
-      `SELECT l.ts, l.seconds, l.chars, s.id, s.language, c.title
+      `SELECT l.ts, l.seconds, word_count(l.text) AS words, s.id, s.language, s.content_id, c.title
        FROM lines l JOIN sessions s ON s.id = l.session_id LEFT JOIN contents c ON c.id = s.content_id
        WHERE l.source = 'gsm' AND l.ts BETWEEN ? AND ? ORDER BY l.ts`,
     )
     .all(from, to) as {
     ts: number;
     seconds: number;
-    chars: number;
+    words: number;
     id: string;
     language: string;
+    content_id: string | null;
     title: string | null;
   }[]) {
     if (!inDay(row.ts)) continue;
@@ -170,16 +171,17 @@ export function dayDetail(db: Database, options: DashboardOptions, day: string):
     }
     const session = sessions.get(row.id) ?? {
       id: row.id,
+      contentId: row.content_id,
       title: row.title,
       start: row.ts,
       end: row.ts,
       seconds: 0,
-      characters: 0,
+      words: 0,
       lines: 0,
     };
     session.end = row.ts;
     session.seconds += row.seconds;
-    session.characters = (session.characters ?? 0) + row.chars;
+    session.words += row.words;
     session.lines = (session.lines ?? 0) + 1;
     sessions.set(row.id, session);
   }

@@ -2,7 +2,7 @@
   import type { DayDetailResponse } from "@mosaik/shared";
   import { getDay } from "../lib/api";
   import { ORIGIN_LABELS, addDays, dayLong, duration, number, timeOf } from "../lib/format";
-  import { hrefDay } from "../lib/router.svelte";
+  import { hrefContent, hrefDay } from "../lib/router.svelte";
 
   let { day }: { day: string } = $props();
 
@@ -79,14 +79,18 @@
             <th scope="col">Juego</th>
             <th scope="col">Horario</th>
             <th scope="col" class="num">Líneas</th>
-            <th scope="col" class="num">Caracteres</th>
+            <th scope="col" class="num">Palabras</th>
             <th scope="col" class="num">Tiempo</th>
           </tr>
         </thead>
         <tbody>
           {#each data.gsm.sessions as session (session.id)}
             <tr>
-              <td>{session.title ?? "Sin nombre"}</td>
+              <td
+                >{#if session.contentId}<a href={hrefContent(session.contentId)}
+                    >{session.title ?? "Sin nombre"}</a
+                  >{:else}{session.title ?? "Sin nombre"}{/if}</td
+              >
               <td
                 >{timeOf(session.start, data.timeZone, data.day)}–{timeOf(
                   session.end,
@@ -95,7 +99,7 @@
                 )}</td
               >
               <td class="num">{number.format(session.lines ?? 0)}</td>
-              <td class="num">{number.format(session.characters ?? 0)}</td>
+              <td class="num">{number.format(session.words)}</td>
               <td class="num">{duration(session.seconds)}</td>
             </tr>
           {/each}
@@ -122,7 +126,6 @@
       {#if byLabel.length > 1}({byLabel
           .map(([label, seconds]) => `${label}: ${duration(seconds)}`)
           .join(" · ")}){/if}
-      Deuchan cuenta los días de medianoche a medianoche.
       {#if data.deuchan.snapshotAt}Último dato: {timeOf(
           data.deuchan.snapshotAt,
           data.timeZone,
