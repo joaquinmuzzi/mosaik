@@ -1,12 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { listContents } from "../src/api/contents.ts";
-import {
-  MAX_COVER_BYTES,
-  getCover,
-  imageType,
-  removeManualCover,
-  setManualCover,
-} from "../src/api/covers.ts";
+import { MAX_COVER_BYTES, getCover, imageType, removeCover, setManualCover } from "../src/api/covers.ts";
 import { searchSteam, setSteamCover } from "../src/api/steam.ts";
 import { createGsmConnector } from "../src/connectors/gsm/connector.ts";
 import { decodeCover } from "../src/connectors/gsm/source.ts";
@@ -157,7 +151,7 @@ describe("covers the user chooses", () => {
     await scheduler.run("gsm");
     expect(await getCover(db, "gsm:g", { youtubeThumbnails: false })).toMatchObject({ mime: "image/jpeg" });
 
-    expect(removeManualCover(db, "gsm:g")).toBe(true);
+    expect(removeCover(db, "gsm:g")).toBe(true);
     await scheduler.run("gsm");
     expect(await getCover(db, "gsm:g", { youtubeThumbnails: false })).toMatchObject({ mime: "image/png" });
   });
@@ -257,6 +251,6 @@ describe("Steam covers", () => {
       ok: false,
       error: "no_steam_image",
     });
-    expect(removeManualCover(db, "gsm:g")).toBe(true);
+    expect(removeCover(db, "gsm:g")).toBe(true);
   });
 });

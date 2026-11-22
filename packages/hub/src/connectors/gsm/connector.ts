@@ -194,13 +194,13 @@ export function applyGsm(
     for (const id of batch.removed) markRemoved.run(now, id, device);
 
     // Covers: rewritten only when an image changes; a game of this computer that lost its image loses its
-    // cover. A cover the user chose is never touched. (Before the games are replaced, to know this
+    // cover. A cover the user chose is never touched; one Mosaik found gives way. (Before the games are replaced, to know this
     // computer's games of last time.)
     const upsertCover = db.prepare(
       `INSERT INTO covers (content_id, mime, data, etag, fetched_at, origin) VALUES (?, ?, ?, ?, ?, 'gsm')
        ON CONFLICT (content_id) DO UPDATE SET mime = excluded.mime, data = excluded.data,
-         etag = excluded.etag, fetched_at = excluded.fetched_at
-       WHERE covers.origin = 'gsm'`,
+         etag = excluded.etag, fetched_at = excluded.fetched_at, origin = 'gsm'
+       WHERE covers.origin IN ('gsm', 'steam-auto')`,
     );
     for (const { gameId, image, etag } of batch.covers) {
       const cover = decodeCover(image);

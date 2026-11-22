@@ -35,6 +35,8 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     logLevel: "silent",
     targetLanguage: "de",
     youtubeThumbnails: false,
+    webCovers: false,
+    steamCovers: false,
     ...overrides,
   };
 }

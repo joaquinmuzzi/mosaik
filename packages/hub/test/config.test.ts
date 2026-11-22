@@ -25,6 +25,8 @@ describe("loadConfig", () => {
       logLevel: "info",
       targetLanguage: "de",
       youtubeThumbnails: false,
+      webCovers: false,
+      steamCovers: false,
     });
   });
 

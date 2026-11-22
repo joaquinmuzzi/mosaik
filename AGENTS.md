@@ -39,7 +39,9 @@ Los detalles (columnas, algoritmos, endpoints) están en `docs/plan.md`, secció
 2. **Todo local.** En modo `local` (el de siempre, por defecto) el servidor escucha solo en `127.0.0.1` y
    ningún dato sale de la máquina. Sin telemetría. Excepciones, siempre elegidas por el usuario:
    `YOUTUBE_THUMBNAILS=1` (apagado por defecto) pide las miniaturas de los videos a YouTube, una vez por video;
-   el botón "Buscar en Steam" de la ficha de un contenido le manda a Steam el texto buscado, solo cuando se toca;
+   `WEB_COVERS=1` (apagado por defecto) abre desde el hub la página de cada contenido que Deuchan contó fuera de
+   YouTube para guardar su imagen; `STEAM_COVERS=1` (apagado por defecto) le manda a Steam el título de los juegos
+   sin portada; el botón "Buscar en Steam" de la ficha de un contenido le manda a Steam el texto buscado, solo cuando se toca;
    y el modo `server` (`MOSAIK_MODE=server`, ver `docs/plan-servidor.md`), que existe solo si el usuario lo
    configura y recibe datos únicamente de sus propias computadoras, con login y tokens por dispositivo.
 3. **Crudo primero.** Cada conector guarda los datos de su fuente tal como llegan (con sus IDs originales) en

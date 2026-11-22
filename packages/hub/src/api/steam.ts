@@ -1,7 +1,8 @@
 /**
- * Game covers from Steam, chosen by the user. Steam's store search needs no key, and most games have a
- * portrait cover (600×900) on Steam's image server. Nothing is sent to Steam unless the user asks for
- * a search: the query (the game's title) is what Steam receives.
+ * Game covers from Steam: chosen by the user or, if they turned it on (STEAM_COVERS), found by the
+ * exact title. Steam's store search needs no key, and most games have a portrait cover (600×900) on
+ * Steam's image server. Nothing else is sent to Steam unless the user asks for a search: the query (the
+ * game's title) is what Steam receives.
  */
 import type { SteamCandidate } from "@mosaik/shared";
 import { z } from "zod";
@@ -23,7 +24,11 @@ const searchSchema = z.object({
     .default([]),
 });
 
-export async function searchSteam(query: string, fetchImpl: typeof fetch = fetch): Promise<SteamCandidate[]> {
+export async function searchSteam(
+  query: string,
+  fetchImpl: typeof fetch = fetch,
+  limit = 8,
+): Promise<SteamCandidate[]> {
   const term = query.trim().slice(0, 120);
   if (term.length < 2) return [];
   const url = new URL(STORE_SEARCH);
@@ -36,7 +41,7 @@ export async function searchSteam(query: string, fetchImpl: typeof fetch = fetch
   if (!parsed.success) throw new Error("Steam answered something unexpected");
   return parsed.data.items
     .filter((item) => item.type === undefined || item.type === "app")
-    .slice(0, 8)
+    .slice(0, limit)
     .map((item) => {
       const [image, header] = steamImages(item.id) as [string, string];
       return { appId: item.id, name: item.name, image, header };
@@ -53,16 +58,44 @@ export async function setSteamCover(
   if (!db.prepare("SELECT 1 FROM contents WHERE id = ?").get(contentId)) {
     return { ok: false, status: 404, error: "not_found" };
   }
+  const data = await downloadCover(appId, fetchImpl);
+  return data
+    ? storeCover(db, contentId, data, "steam")
+    : { ok: false, status: 404, error: "no_steam_image" };
+}
+
+async function downloadCover(appId: number, fetchImpl: typeof fetch): Promise<Uint8Array | null> {
   for (const url of steamImages(appId)) {
     try {
       const response = await fetchImpl(url, { signal: AbortSignal.timeout(8000) });
       if (!response.ok) continue;
       const data = new Uint8Array(await response.arrayBuffer());
       if (data.length === 0 || data.length > MAX_COVER_BYTES || !imageType(data)) continue;
-      return storeCover(db, contentId, data, "steam");
+      return data;
     } catch {
       // Try the next image, or give up below
     }
   }
-  return { ok: false, status: 404, error: "no_steam_image" };
+  return null;
+}
+
+/** Titles compared without case, spacing, punctuation or trademark signs. */
+const gameTitle = (title: string) =>
+  title
+    .replace(/[™®©]/g, "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+
+/** The cover of the one Steam game with exactly this title, or null. */
+export async function findSteamCover(
+  title: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Uint8Array | null> {
+  const wanted = gameTitle(title);
+  if (wanted === "") return null;
+  const same = (await searchSteam(title, fetchImpl, 50)).filter((game) => gameTitle(game.name) === wanted);
+  // Two games with one name: the user picks
+  return same.length === 1 ? downloadCover(same[0]!.appId, fetchImpl) : null;
 }

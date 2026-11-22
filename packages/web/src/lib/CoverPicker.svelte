@@ -1,7 +1,8 @@
 <script lang="ts">
   /**
    * A content's cover, with the ways to change it: look the game up on Steam and pick one, upload an
-   * image, or go back to the automatic one (GSM's image, or the YouTube thumbnail).
+   * image, or go back to the automatic one (GSM's image, the YouTube thumbnail, or one Mosaik finds).
+   * One that Mosaik found can be removed too, and it is not looked for again.
    */
   import type { ContentSummary, SteamCandidate } from "@mosaik/shared";
   import { removeCover, searchSteamCovers, setSteamCover, uploadCover } from "./api";
@@ -17,7 +18,9 @@
   let error = $state<string | null>(null);
   let file: HTMLInputElement;
 
-  const chosen = $derived(content.coverSource === "manual" || content.coverSource === "steam");
+  const removable = $derived(
+    content.coverSource !== null && content.coverSource !== "gsm" && content.coverSource !== "youtube",
+  );
 
   async function run(task: () => Promise<unknown>, after = true) {
     busy = true;
@@ -53,17 +56,17 @@
 </script>
 
 <div class="picker">
-  <div class="art" class:video={content.kind === "video"}><Cover {content} /></div>
+  <div class="art" class:video={content.kind !== "game"}><Cover {content} /></div>
   <div class="actions">
     <button type="button" onclick={openSteam} aria-expanded={open} disabled={busy}>Buscar en Steam</button>
     <button type="button" onclick={() => file.click()} disabled={busy}>Subir imagen</button>
-    {#if chosen}
+    {#if removable}
       <button type="button" class="quiet" onclick={() => run(() => removeCover(content.id))} disabled={busy}>
         Quitar portada
       </button>
     {/if}
     <Info
-      text="La búsqueda le manda a Steam el texto que escribas (no otra cosa) y solo cuando tocás «Buscar». La imagen que elijas o subas queda guardada en Mosaik y ninguna sincronización la reemplaza."
+      text="La búsqueda le manda a Steam el texto que escribas (no otra cosa) y solo cuando tocás «Buscar». La imagen que elijas o subas queda guardada en Mosaik y ninguna sincronización la reemplaza. Si quitás una que Mosaik encontró solo, no la vuelve a buscar."
       label="Sobre las portadas"
     />
     <input

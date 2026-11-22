@@ -133,6 +133,8 @@ Todas son opcionales:
 | `TZ_NAME` | `America/Buenos_Aires` | Zona horaria para calcular los días |
 | `SYNC_INTERVAL_MINUTES` | `5` | Cada cuánto corren los conectores |
 | `YOUTUBE_THUMBNAILS` | apagado | `1` para pedirle a YouTube las miniaturas de los videos (una vez cada una) |
+| `WEB_COVERS` | apagado | `1` para abrir la página de lo que Deuchan contó fuera de YouTube y guardar su imagen como portada |
+| `STEAM_COVERS` | apagado | `1` para buscar en Steam la portada de los juegos que no tienen, solo si el título coincide exacto |
 | `TARGET_LANGUAGE` | `de` | Idioma que se aprende: solo sus sesiones cuentan como inmersión |
 | `LOG_LEVEL` | `info` | `fatal` … `trace`, o `silent` |
 | `MOSAIK_MODE` | `local` | `server` para un servidor en internet (Railway): login, sin conectores propios |
@@ -165,7 +167,7 @@ Todas son opcionales:
 | `GET /api/contents` | Juegos y videos con su tiempo, sesiones y tarjetas |
 | `GET /api/contents/:id` | La ficha de un contenido |
 | `PUT /api/contents/:id/cover` | Guarda la imagen enviada (PNG, JPEG, WebP o GIF, hasta 5 MB) como portada elegida |
-| `DELETE /api/contents/:id/cover` | Quita la portada elegida y vuelve a la automática |
+| `DELETE /api/contents/:id/cover` | Quita la portada elegida y vuelve a la automática; una que encontró Mosaik no se vuelve a buscar |
 | `GET /api/covers/steam?q=` | Busca juegos en Steam para elegir portada (solo cuando se pide) |
 | `POST /api/contents/:id/cover/steam` | Baja la portada del juego de Steam `{ appId }` y la guarda |
 | `GET /api/search?q=` | Oraciones leídas que contienen el texto (3 letras como mínimo) |
