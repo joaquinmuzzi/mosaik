@@ -92,7 +92,6 @@
           "Juegos (GSM)",
           theme.gsm,
           rhythm.map((day) => toMinutes(day.averageGsm)),
-          false,
           "avg",
         ),
         barSeries(
@@ -100,7 +99,6 @@
           "Deuchan",
           theme.youtube,
           rhythm.map((day) => toMinutes(day.averageDeuchan)),
-          true,
           "avg",
         ),
         {

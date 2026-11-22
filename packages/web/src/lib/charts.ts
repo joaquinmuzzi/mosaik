@@ -1,5 +1,5 @@
 /**
- * Shared chart settings: thin bars with rounded data ends, a surface gap between stacked segments,
+ * Shared chart settings: thin bars with square ends, a surface gap between stacked segments,
  * recessive axes and grid, a tooltip on every mark, and a legend whenever there are two series.
  */
 import type { Theme } from "./Chart.svelte";
@@ -55,15 +55,8 @@ export function valueAxis(theme: Theme, name: string) {
   };
 }
 
-/** A bar series; in a stack, every segment but the top one keeps square ends and a 2px gap. */
-export function barSeries(
-  theme: Theme,
-  name: string,
-  color: string,
-  data: number[],
-  top: boolean,
-  stack?: string,
-) {
+/** A bar series, with square ends; in a stack, its segments have a 2px gap. */
+export function barSeries(theme: Theme, name: string, color: string, data: number[], stack?: string) {
   return {
     type: "bar",
     name,
@@ -72,7 +65,6 @@ export function barSeries(
     barMaxWidth: 18,
     itemStyle: {
       color,
-      borderRadius: top ? [4, 4, 0, 0] : 0,
       borderColor: theme.surface,
       borderWidth: stack ? 1 : 0,
     },

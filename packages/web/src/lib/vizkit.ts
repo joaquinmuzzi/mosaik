@@ -80,9 +80,9 @@ export function immersionOption(
     options.period === "day" ? dayShort(key) : `sem ${dayShort(mondayOf(key))}`,
   );
   const base = baseOption(theme, { legend: options.legend ?? true });
-  const series = groups.map((group, index) =>
+  const series = groups.map((group) =>
     options.mark === "bars"
-      ? barSeries(theme, group.name, group.color, group.values, index === groups.length - 1, "immersion")
+      ? barSeries(theme, group.name, group.color, group.values, "immersion")
       : {
           type: "line",
           name: group.name,

@@ -65,7 +65,6 @@
           "Tiempo",
           color(theme),
           days.map((day) => minutes(day.seconds)),
-          true,
         ),
       ],
     });
