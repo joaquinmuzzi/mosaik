@@ -43,6 +43,29 @@ export function titleColor(
 
 const shortTitle = (title: string) => (title.length > 38 ? `${title.slice(0, 36)}…` : title);
 
+const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (character) => `&#${character.charCodeAt(0)};`);
+
+interface TooltipItem {
+  axisValueLabel?: string;
+  marker: string;
+  seriesName: string;
+  value: number;
+}
+
+/** The tooltip of the chart by title: only the titles with time on that day or week. */
+export function titlesTooltip(items: TooltipItem[], format: (value: number) => string): string {
+  const rows = items
+    .filter((item) => item.value > 0)
+    .map(
+      (item) =>
+        `<div style="display:flex;justify-content:space-between;gap:20px"><span>${item.marker}${escapeHtml(item.seriesName)}</span><b>${format(item.value)}</b></div>`,
+    );
+  return [
+    `<div>${escapeHtml(items[0]?.axisValueLabel ?? "")}</div>`,
+    ...(rows.length > 0 ? rows : ["<div>Nada de estos títulos</div>"]),
+  ].join("");
+}
+
 /** Immersion over time, with the three switches. Minutes per day, or hours per week. */
 export function immersionOption(
   theme: Theme,
@@ -54,10 +77,11 @@ export function immersionOption(
   const keys = options.period === "day" ? dayKeys : weekKeys(dayKeys);
   const scale = options.period === "day" ? 60 : 3600;
   const unit = options.period === "day" ? "minutos" : "horas";
+  const format = (value: number) => duration(value * scale);
   const sum = (value: (day: string) => number) => {
-    if (options.period === "day") return keys.map((key) => +(value(key) / scale).toFixed(2));
+    if (options.period === "day") return keys.map((key) => +(value(key) / scale).toFixed(4));
     const weeks = perWeek(dayKeys, value);
-    return keys.map((key) => +((weeks.get(key) ?? 0) / scale).toFixed(2));
+    return keys.map((key) => +((weeks.get(key) ?? 0) / scale).toFixed(4));
   };
 
   const groups =
@@ -104,8 +128,10 @@ export function immersionOption(
           ? base.tooltip.axisPointer
           : { type: "line", lineStyle: { color: theme.muted } },
       confine: true,
-      valueFormatter: (value: number) =>
-        options.period === "day" ? duration(value * 60) : duration(value * 3600),
+      valueFormatter: format,
+      ...(options.split === "title"
+        ? { formatter: (items: TooltipItem[]) => titlesTooltip(items, format) }
+        : {}),
     },
     xAxis: { ...categoryAxis(theme, labels), boundaryGap: options.mark === "bars" },
     yAxis: valueAxis(theme, unit),
