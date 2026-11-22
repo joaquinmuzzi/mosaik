@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getContents } from "../lib/api";
   import Cover from "../lib/Cover.svelte";
-  import { dayShort, duration, number } from "../lib/format";
+  import { KIND_LABELS, dayShort, duration, number } from "../lib/format";
   import Info from "../lib/Info.svelte";
   import { load } from "../lib/load.svelte";
   import { NOTES } from "../lib/notes";
@@ -45,9 +45,9 @@
             <span class="k-meta">
               <span
                 class="tile"
-                style:background={content.kind === "video" ? "var(--series-youtube)" : "var(--series-gsm)"}
+                style:background={content.kind === "game" ? "var(--series-gsm)" : "var(--series-youtube)"}
               ></span>
-              {content.kind === "video" ? "Video" : "Juego"} ·
+              {KIND_LABELS[content.kind] ?? content.kind} ·
               <span class="figure">{duration(content.seconds)}</span>
               {#if content.cardsMined > 0}· {number.format(content.cardsMined)} tarjetas{/if}
             </span>
@@ -109,6 +109,8 @@
 
   .k-cover {
     aspect-ratio: 3 / 4;
+    /* A tall image does not stretch the tile */
+    min-height: 0;
   }
 
   .k-info {
