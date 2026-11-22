@@ -87,6 +87,20 @@ export function countedIntervals<T extends IngestEvent>(
   return counted;
 }
 
+/**
+ * What each item's counted time mostly was: the same page can be counted by hand as reading once and
+ * as sound another time (a podcast).
+ */
+function countedKinds(intervals: WatchIntervalEvent[]): Map<string, ContentKind> {
+  const balance = new Map<string, number>();
+  for (const interval of intervals) {
+    const id = deuchanContentId(interval);
+    const sign = interval.contentKind === "reading" ? 1 : -1;
+    balance.set(id, (balance.get(id) ?? 0) + sign * interval.seconds);
+  }
+  return new Map([...balance].map(([id, reading]) => [id, reading > 0 ? "reading" : "video"]));
+}
+
 interface ItemInfo {
   title: string | null;
   titleAt: number;
@@ -138,6 +152,8 @@ export function rebuildDeuchan(db: Database, { timeZone }: DeuchanDeriveOptions)
     if (event.kind === "watch_interval") see(event, event.title, event.to);
     if (event.kind === "day_total") for (const video of event.videos ?? []) see(video, video.title, event.at);
   }
+  // What was removed does not decide the kind; an item with nothing counted keeps what its source said
+  for (const [id, kind] of countedKinds(intervals)) items.get(id)!.kind = kind;
   const insertContent = db.prepare(
     `INSERT INTO contents (id, source, kind, title, external_id, parent_id, total_units, unit, meta)
      VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?)`,

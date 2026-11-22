@@ -2,7 +2,8 @@
  * Cover images. GSM's game images are copied by the GSM connector. YouTube thumbnails are fetched
  * from YouTube only when the user turned it on (YOUTUBE_THUMBNAILS), because asking for one tells
  * YouTube the video id; each one is fetched once and kept in the database. The user can also choose a
- * cover for any content (`setManualCover`): it wins over the others and no sync replaces it.
+ * cover for any content (`setManualCover`): it wins over the others and no sync replaces it. Covers that
+ * Mosaik found by itself (`storeFoundCover`, see cover-finder.ts) only fill what has none.
  */
 import { createHash } from "node:crypto";
 import type { Database } from "../db/database.ts";
@@ -101,14 +102,44 @@ export const setManualCover = (db: Database, contentId: string, data: Uint8Array
   storeCover(db, contentId, data, "manual", now);
 
 /**
- * Removes the cover the user chose (uploaded or from Steam). GSM's image comes back on the next GSM sync, and a YouTube thumbnail
- * on the next view (if turned on).
+ * Keeps a cover Mosaik found by itself, if the content still has none: one the user chose meanwhile
+ * stays. Returns whether it was kept.
  */
-export function removeManualCover(db: Database, contentId: string): boolean {
-  return (
-    Number(
-      db.prepare("DELETE FROM covers WHERE content_id = ? AND origin IN ('manual', 'steam')").run(contentId)
-        .changes,
-    ) > 0
-  );
+export function storeFoundCover(
+  db: Database,
+  contentId: string,
+  data: Uint8Array,
+  origin: "web" | "steam-auto",
+  now = Date.now(),
+): boolean {
+  const mime = data.length <= MAX_COVER_BYTES ? imageType(data) : null;
+  if (!mime) return false;
+  const result = db
+    .prepare(
+      `INSERT INTO covers (content_id, mime, data, etag, fetched_at, origin) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (content_id) DO NOTHING`,
+    )
+    .run(contentId, mime, data, createHash("sha1").update(data).digest("hex"), now, origin);
+  return Number(result.changes) > 0;
+}
+
+/**
+ * Removes a cover the user chose (uploaded or from Steam) or one Mosaik found by itself. After a chosen
+ * one, the automatic one comes back: GSM's image on the next GSM sync, a YouTube thumbnail on the next
+ * view, a found one on the next search (if turned on). A found one is not looked for again.
+ */
+export function removeCover(db: Database, contentId: string, now = Date.now()): boolean {
+  const removed = db
+    .prepare(
+      `DELETE FROM covers WHERE content_id = ? AND origin IN ('manual', 'steam', 'web', 'steam-auto')
+       RETURNING origin`,
+    )
+    .get(contentId) as { origin: string } | undefined;
+  if (removed?.origin === "web" || removed?.origin === "steam-auto") {
+    db.prepare(
+      `INSERT INTO cover_searches (content_id, searched_at, result, attempts) VALUES (?, ?, 'dismissed', 1)
+       ON CONFLICT (content_id) DO UPDATE SET searched_at = excluded.searched_at, result = 'dismissed'`,
+    ).run(contentId, now);
+  }
+  return removed !== undefined;
 }

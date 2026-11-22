@@ -59,7 +59,7 @@ import {
   verifyPassword,
 } from "./auth.ts";
 import { contentDetail, listContents, searchLines } from "./api/contents.ts";
-import { MAX_COVER_BYTES, getCover, removeManualCover, setManualCover } from "./api/covers.ts";
+import { MAX_COVER_BYTES, getCover, removeCover, setManualCover } from "./api/covers.ts";
 import { searchSteam, setSteamCover } from "./api/steam.ts";
 import { ankiStats, dayDetail, isDay, overview } from "./api/dashboard.ts";
 import { backupDatabase, cardsCsv, contentsCsv, daysCsv } from "./api/export.ts";
@@ -553,7 +553,7 @@ export async function buildServer({
   );
 
   app.delete<{ Params: { id: string } }>("/api/contents/:id/cover", async (request) => ({
-    removed: removeManualCover(db, request.params.id),
+    removed: removeCover(db, request.params.id),
   }));
 
   app.get<{ Params: { id: string } }>("/api/contents/:id", async (request, reply) => {

@@ -175,14 +175,15 @@ export interface ContentSummary {
   cardsMined: number;
   firstDay: string | null;
   lastDay: string | null;
-  /** URL of the cover image (GSM's game image, or a YouTube thumbnail if turned on), or null. */
+  /** URL of the cover image (stored, or a YouTube thumbnail if turned on), or null. */
   cover: string | null;
   /** Where the stored cover came from; null when there is none yet. */
   coverSource: CoverSource | null;
 }
 
 /** GSM's game image, a YouTube thumbnail, an image the user uploaded, or one they picked on Steam. */
-export type CoverSource = "gsm" | "youtube" | "manual" | "steam";
+/** `manual` and `steam` were chosen by the user; `web` and `steam-auto` were found by Mosaik. */
+export type CoverSource = "gsm" | "youtube" | "manual" | "steam" | "web" | "steam-auto";
 
 /** A game found on Steam, offered as a cover. */
 export interface SteamCandidate {

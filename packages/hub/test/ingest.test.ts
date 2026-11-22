@@ -1,4 +1,4 @@
-import type { IngestResponse, SourcesResponse } from "@mosaik/shared";
+import { type IngestResponse, type SourcesResponse, dayKey } from "@mosaik/shared";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { type Database, openDatabase } from "../src/db/database.ts";
@@ -426,6 +426,31 @@ describe("Deuchan on several devices", () => {
       { content_id: "web:comic1", medium: "reading", device: "joaquin" },
     ]);
     expect(rows("SELECT reading_seconds FROM day_totals")).toEqual([{ reading_seconds: 120 }]);
+  });
+
+  it("takes the kind of an item from most of its counted time, without what was removed", async () => {
+    await setup();
+    const page = { videoId: undefined, itemId: "web:podcast", url: "https://example.com/podcast" };
+    const reading = { ...page, contentKind: "reading" };
+    const kind = () => rows("SELECT kind FROM contents WHERE id = 'web:podcast'");
+    sendFrom("joaquin", [interval(T, T + 900_000, reading)]);
+    expect(kind()).toEqual([{ kind: "book" }]);
+    // Counted later as sound, which says no kind: less than the reading, until the reading is removed
+    sendFrom("joaquin", [interval(T + 1_000_000, T + 1_120_000, page)]);
+    expect(kind()).toEqual([{ kind: "book" }]);
+    sendFrom("joaquin", [
+      {
+        id: "deuchan:rm:podcast",
+        source: "deuchan",
+        kind: "video_removed",
+        language: "de",
+        day: dayKey(T + 900_000, "America/Buenos_Aires", 0),
+        at: T + 950_000,
+        itemId: "web:podcast",
+      },
+    ]);
+    expect(kind()).toEqual([{ kind: "video" }]);
+    expect(rows("SELECT medium, seconds FROM sessions")).toEqual([{ medium: "video", seconds: 120 }]);
   });
 
   it("rejects an item without videoId or itemId", async () => {

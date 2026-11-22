@@ -12,6 +12,7 @@ import { agentLogger, runAgent } from "./agent-main.ts";
 import { ConfigError, loadConfig } from "./config.ts";
 import { createConnectors } from "./connectors/index.ts";
 import type { Logger } from "./connectors/types.ts";
+import { createCoverFinder } from "./cover-finder.ts";
 import { openDatabase } from "./db/database.ts";
 import { promoteImport } from "./db/import.ts";
 import { applyMigrations, schemaVersion } from "./db/migrate.ts";
@@ -48,16 +49,30 @@ async function main(): Promise<void> {
   const db = openDatabase(config.dbPath);
   const applied = applyMigrations(db);
 
-  // The scheduler logs through the server's logger, so it is attached once the server exists
-  let schedulerLog: Logger = console;
+  // What runs in the background logs through the server's logger, attached once the server exists
+  let serverLog: Logger = console;
+  const log: Logger = {
+    info: (object, message) => serverLog.info(object, message),
+    warn: (object, message) => serverLog.warn(object, message),
+    error: (object, message) => serverLog.error(object, message),
+  };
   const scheduler = createScheduler({
     db,
     intervalMs: config.syncIntervalMinutes * 60_000,
-    log: {
-      info: (object, message) => schedulerLog.info(object, message),
-      warn: (object, message) => schedulerLog.warn(object, message),
-      error: (object, message) => schedulerLog.error(object, message),
+    log,
+  });
+  const covers = createCoverFinder({
+    db,
+    dashboard: {
+      timeZone: config.timeZone,
+      cutoffHour: config.dayCutoffHour,
+      targetLanguage: config.targetLanguage,
+      youtubeThumbnails: config.youtubeThumbnails,
     },
+    webCovers: config.webCovers,
+    steamCovers: config.steamCovers,
+    intervalMs: config.syncIntervalMinutes * 60_000,
+    log,
   });
   // In server mode the sources are read on each computer, by its agent
   if (config.mode === "local") {
@@ -67,7 +82,7 @@ async function main(): Promise<void> {
   }
 
   const app = await buildServer({ config, db, scheduler, logger });
-  schedulerLog = app.log;
+  serverLog = app.log;
   app.log.info(
     {
       mode: config.mode,
@@ -85,7 +100,7 @@ async function main(): Promise<void> {
     }
     closing = true;
     app.log.info({ signal }, "shutting down");
-    await scheduler.stop();
+    await Promise.all([scheduler.stop(), covers.stop()]);
     await app.close();
     db.close();
     process.exit(0);
@@ -95,6 +110,7 @@ async function main(): Promise<void> {
 
   await app.listen({ host: config.host, port: config.port });
   scheduler.start();
+  covers.start();
 }
 
 main().catch((error: unknown) => {

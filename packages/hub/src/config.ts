@@ -46,6 +46,10 @@ export interface Config {
   targetLanguage: string;
   /** Fetch YouTube thumbnails from YouTube (off by default: it tells YouTube which videos you watched). */
   youtubeThumbnails: boolean;
+  /** Open the pages Deuchan counted to keep their image (off by default: each site sees the request). */
+  webCovers: boolean;
+  /** Ask Steam for the titles of games without a cover (off by default: Steam sees the titles). */
+  steamCovers: boolean;
 }
 
 type Env = Record<string, string | undefined>;
@@ -78,6 +82,9 @@ const deckList = z
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
 
+const flag = optional(z.enum(["0", "1", "true", "false"]));
+const isOn = (value: string | undefined) => value === "1" || value === "true";
+
 const port = z.coerce.number().int().min(1).max(65_535);
 
 const envSchema = z.object({
@@ -99,7 +106,9 @@ const envSchema = z.object({
   TZ_NAME: optional(z.string().refine(isValidTimeZone, { message: "unknown IANA time zone" })),
   // Up to a day
   SYNC_INTERVAL_MINUTES: optional(z.coerce.number().min(1).max(1440)),
-  YOUTUBE_THUMBNAILS: optional(z.enum(["0", "1", "true", "false"])),
+  YOUTUBE_THUMBNAILS: flag,
+  WEB_COVERS: flag,
+  STEAM_COVERS: flag,
   TARGET_LANGUAGE: optional(z.string().regex(/^[a-z]{2,3}$/)),
   LOG_LEVEL: optional(z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])),
 });
@@ -160,6 +169,8 @@ export function loadConfig(env: Env = process.env, platform: NodeJS.Platform = p
     syncIntervalMinutes: values.SYNC_INTERVAL_MINUTES ?? 5,
     logLevel: values.LOG_LEVEL ?? "info",
     targetLanguage: values.TARGET_LANGUAGE ?? "de",
-    youtubeThumbnails: values.YOUTUBE_THUMBNAILS === "1" || values.YOUTUBE_THUMBNAILS === "true",
+    youtubeThumbnails: isOn(values.YOUTUBE_THUMBNAILS),
+    webCovers: isOn(values.WEB_COVERS),
+    steamCovers: isOn(values.STEAM_COVERS),
   };
 }

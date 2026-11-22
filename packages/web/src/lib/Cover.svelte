@@ -1,14 +1,16 @@
 <script lang="ts">
   /**
-   * A content's cover: GSM's game image, or a YouTube thumbnail when turned on. Without one (or if it
-   * fails to load), a tile with the initials in the source's color.
+   * A content's cover: the game's image, the video's thumbnail or the page's image. Without one (or if
+   * it fails to load), a tile with the initials in the source's color.
    */
   import type { ContentSummary } from "@mosaik/shared";
+  import { KIND_LABELS } from "./format";
 
   let { content, badge = false }: { content: ContentSummary; badge?: boolean } = $props();
 
   let failed = $state(false);
-  const isVideo = $derived(content.kind === "video");
+  /** Anything but a game comes from Deuchan, whose images have any shape. */
+  const isVideo = $derived(content.kind !== "game");
   const initials = $derived(
     (content.title ?? "?")
       .replace(/^\(\d+\)\s*/, "")
@@ -22,7 +24,7 @@
 
 <div class="cover" class:video={isVideo}>
   {#if content.cover && !failed && isVideo}
-    <!-- A 16:9 thumbnail in a tile of another shape: whole, over a blurred copy of itself -->
+    <!-- A thumbnail in a tile of another shape: whole, over a blurred copy of itself -->
     <img class="backdrop" src={content.cover} alt="" aria-hidden="true" />
     <img class="contain" src={content.cover} alt="" loading="lazy" onerror={() => (failed = true)} />
   {:else if content.cover && !failed}
@@ -31,7 +33,7 @@
     <span class="initials" aria-hidden="true">{initials}</span>
   {/if}
   {#if badge}
-    <span class="kind">{isVideo ? "Video" : "Juego"}</span>
+    <span class="kind">{KIND_LABELS[content.kind] ?? content.kind}</span>
   {/if}
 </div>
 
@@ -43,6 +45,7 @@
     height: 100%;
     overflow: hidden;
     display: grid;
+    grid-template: 100% / 100%;
     place-items: center;
     /* No cover yet: a flat tile in a dim tone of the source's color, with the initials in it */
     background: color-mix(in srgb, var(--series-gsm) 22%, var(--surface));
